@@ -54,7 +54,6 @@ We welcome features and fixes via pull requests.
 
 | Username | Password | Role |
 |---|---|---|
-| `admin` | `admin12345` | Superuser (Django admin) |
 | `alice` | `SecurePass!9q` | Researcher |
 | `omar_ibrahim` | `Demo!2024gfr` | Professor |
 | `lena_vogel` | `Demo!2024gfr` | Researcher |
