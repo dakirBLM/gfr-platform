@@ -1,0 +1,69 @@
+{% extends 'dashboard_base.html' %}
+
+{% block title %}Home · GFR Dashboard{% endblock %}
+{% block topbar_eyebrow %}Workspace{% endblock %}
+{% block topbar_title %}Welcome back, {{ user.first_name|default:user.username }}{% endblock %}
+
+{% block extra_head %}
+<style>
+  @keyframes overviewIn { from { opacity: 0; transform: translateY(7px); } to { opacity: 1; transform: translateY(0); } }
+  @keyframes chartDraw { from { stroke-dashoffset: 120; } to { stroke-dashoffset: 0; } }
+  @keyframes barGrow { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+  .overview-card { animation: overviewIn .45s ease both; }
+  .overview-card:nth-child(2) { animation-delay: .07s; }
+  .overview-card:nth-child(3) { animation-delay: .14s; }
+  .overview-card:nth-child(4) { animation-delay: .21s; }
+  .overview-line { stroke-dasharray: 120; animation: chartDraw 1.1s ease-out both; }
+  .overview-bar { transform-origin: left; animation: barGrow .8s ease-out both; }
+  @media (prefers-reduced-motion: reduce) { .overview-card, .overview-line, .overview-bar { animation: none; } }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl space-y-8">
+  <section class="grid md:grid-cols-2 gap-4 items-start">
+    <details class="group bg-white border border-ink-100 rounded-xl">
+      <summary class="cursor-pointer list-none px-5 py-4 flex items-center justify-between"><h2 class="font-semibold">Quick actions</h2><svg class="w-4 h-4 text-ink-500 transition-transform group-open:rotate-180" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 9l6 6 6-6"/></svg></summary>
+      <ul class="border-t border-ink-100 divide-y divide-ink-100">{% for a in quick_actions %}<li><a href="{{ a.href }}" class="block px-5 py-3 text-sm font-medium text-ink-800 hover:bg-ink-50 hover:text-brand-700">{{ a.title }}</a></li>{% endfor %}</ul>
+    </details>
+    <details class="group bg-white border border-ink-100 rounded-xl">
+      <summary class="cursor-pointer list-none px-5 py-4 flex items-center justify-between"><h2 class="font-semibold">My tasks{% if open_task_count %}<span class="ml-2 px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 text-xs">{{ open_task_count }}</span>{% endif %}</h2><svg class="w-4 h-4 text-ink-500 transition-transform group-open:rotate-180" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 9l6 6 6-6"/></svg></summary>
+      <div class="border-t border-ink-100">{% for task in my_tasks %}<a href="{% url 'dashboard:project_task_detail' task.project.slug task.pk %}" class="block px-5 py-3 border-b border-ink-100 last:border-0 hover:bg-ink-50"><span class="block text-sm font-medium text-ink-800">{{ task.title }}</span><span class="block mt-0.5 text-xs text-ink-600">{{ task.project.title }}{% if task.due_date %} · due {{ task.due_date|date:"N j" }}{% endif %}</span></a>{% empty %}<p class="px-5 py-4 text-sm text-ink-600">No open tasks.</p>{% endfor %}</div>
+    </details>
+  </section>
+
+  <section>
+    <h3 class="text-sm font-semibold text-ink-600 uppercase tracking-wider mb-3">Overview</h3>
+    <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">{% for s in stats %}<a href="{{ s.href }}" class="overview-card group bg-white border border-ink-100 rounded-xl p-5 hover:border-brand-200 hover:shadow-sm transition-all block"><div class="flex items-center justify-between gap-3"><div class="text-xs uppercase tracking-wider text-ink-600">{{ s.label }}</div><span class="w-2 h-2 rounded-full {% if s.value %}bg-emerald-500{% else %}bg-ink-300{% endif %}"></span></div><div class="mt-2 flex items-baseline gap-2"><span class="font-serif text-3xl font-semibold {% if s.value > 0 %}text-ink-900{% else %}text-ink-400{% endif %}">{{ s.value }}</span><span class="text-xs text-ink-600">{{ s.sub }}</span></div><div class="mt-4 h-9"><svg class="w-full h-full overflow-visible" viewBox="0 0 120 36" preserveAspectRatio="none" aria-hidden="true">{% if forloop.counter == 1 %}<path class="overview-line" d="M0 27 L18 24 L35 27 L53 15 L70 19 L88 10 L105 14 L120 5" fill="none" stroke="#3b6cf2" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>{% elif forloop.counter == 2 %}<path class="overview-line" d="M0 28 L20 25 L39 19 L58 22 L76 12 L96 16 L120 6" fill="none" stroke="#10b981" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>{% elif forloop.counter == 3 %}<path class="overview-line" d="M0 10 L18 18 L36 13 L55 26 L73 17 L91 23 L120 9" fill="none" stroke="#f59e0b" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>{% else %}<path class="overview-line" d="M0 25 L20 18 L39 23 L58 8 L77 19 L98 12 L120 16" fill="none" stroke="#8b5cf6" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>{% endif %}</svg></div><div class="mt-1 h-1 rounded-full bg-ink-100 overflow-hidden"><div class="overview-bar h-full rounded-full {% if s.tone == 'emerald' %}bg-emerald-500{% elif s.tone == 'amber' %}bg-amber-500{% elif s.tone == 'violet' %}bg-violet-500{% else %}bg-brand-500{% endif %}" style="width: {% if s.value %}min({{ s.value }}0%, 100%){% else %}7%{% endif %}"></div></div></a>{% endfor %}</div>
+  </section>
+
+  <section class="max-w-3xl space-y-4">
+    <div class="bg-white border border-ink-100 rounded-xl p-4"><form method="post" action="{% url 'dashboard:social_post_create' %}">{% csrf_token %}<div class="flex items-start gap-3"><img src="{{ user.avatar_url }}" alt="{{ user.display_name }}" class="w-9 h-9 rounded-full object-cover shrink-0"><textarea name="body" rows="2" maxlength="1000" placeholder="Share a research update, question, or finding with your network…" class="flex-1 text-sm rounded-xl border border-ink-200 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-400 resize-none"></textarea></div><div class="flex justify-end mt-2"><button type="submit" class="px-4 py-1.5 rounded-md bg-brand-700 text-white text-sm font-semibold hover:bg-brand-800">Post</button></div></form></div>
+
+    {% if feed_posts %}
+      <div id="feed-posts" class="space-y-4">{% for post in feed_posts %}{% include 'social/_post.html' %}{% endfor %}</div>
+      {% if feed_has_more %}<div id="feed-sentinel" data-next-page="2" class="py-5 text-center text-xs text-ink-500">Loading more posts…</div>{% endif %}
+    {% else %}
+      <div class="bg-white border border-ink-100 rounded-xl p-12 text-center"><p class="text-sm font-medium text-ink-900">Your feed is quiet.</p><p class="mt-1 text-sm text-ink-600">Follow researchers from the <a href="{% url 'dashboard:researcher_directory' %}" class="text-brand-700 hover:text-brand-800">directory</a> to see their updates here.</p></div>
+    {% endif %}
+  </section>
+</div>
+<script>
+  (() => {
+    const sentinel = document.getElementById('feed-sentinel'); const feed = document.getElementById('feed-posts');
+    if (!sentinel || !feed || !('IntersectionObserver' in window)) return;
+    let loading = false;
+    const observer = new IntersectionObserver(async ([entry]) => {
+      if (!entry.isIntersecting || loading) return; loading = true;
+      try {
+        const response = await fetch(`{% url 'dashboard:social_feed_page' %}?page=${sentinel.dataset.nextPage}`, {headers: {'X-Requested-With': 'XMLHttpRequest'}});
+        if (!response.ok) throw new Error('Feed request failed');
+        feed.insertAdjacentHTML('beforeend', await response.text());
+        if (response.headers.get('X-Has-More') === 'true') { sentinel.dataset.nextPage = response.headers.get('X-Next-Page'); loading = false; }
+        else { observer.disconnect(); sentinel.remove(); }
+      } catch (_) { sentinel.textContent = 'Could not load more posts. Scroll to try again.'; loading = false; }
+    }, {rootMargin: '250px'});
+    observer.observe(sentinel);
+  })();
+</script>
+{% endblock %}

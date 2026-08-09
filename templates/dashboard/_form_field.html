@@ -1,0 +1,7 @@
+{# Compact field renderer for dashboard forms. Widget classes come from the form's __init__. #}
+<label class="block">
+  <span class="text-sm font-medium text-ink-700">{{ field.label }}{% if field.field.required %} <span class="text-rose-600">*</span>{% endif %}</span>
+  {{ field }}
+  {% if field.help_text %}<p class="mt-1 text-xs text-ink-600">{{ field.help_text }}</p>{% endif %}
+  {% if field.errors %}<p class="mt-1 text-xs text-rose-700">{{ field.errors|join:" " }}</p>{% endif %}
+</label>

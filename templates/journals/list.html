@@ -1,0 +1,44 @@
+{% extends 'dashboard_base.html' %}
+
+{% block title %}Journals · GFR{% endblock %}
+{% block topbar_eyebrow %}Publishing{% endblock %}
+{% block topbar_title %}Peer-reviewed Journals{% endblock %}
+
+{% block content %}
+<div class="max-w-5xl space-y-6">
+
+  <div class="flex items-center justify-between">
+    <p class="text-sm text-ink-600">{{ journals|length }} active journal{{ journals|length|pluralize }}</p>
+    {% if user.can_submit_paper %}
+      <span class="text-xs text-ink-600 bg-emerald-50 border border-emerald-100 text-emerald-700 px-2.5 py-1 rounded-full font-medium">Submission open for your role</span>
+    {% endif %}
+  </div>
+
+  <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
+    {% for j in journals %}
+      <a href="{% url 'dashboard:journal_detail' j.slug %}"
+         class="group bg-white border border-ink-100 rounded-xl p-6 flex flex-col gap-3 hover:border-brand-200 hover:shadow-sm transition-all">
+        <div>
+          <div class="w-10 h-10 rounded-lg bg-brand-800 text-white flex items-center justify-center font-serif text-lg font-bold mb-3">
+            {{ j.name|first }}
+          </div>
+          <h2 class="font-serif text-base font-semibold group-hover:text-brand-700 leading-snug">{{ j.name }}</h2>
+          {% if j.issn %}<p class="text-[11px] text-ink-600 mt-0.5">ISSN {{ j.issn }}</p>{% endif %}
+        </div>
+        <p class="text-sm text-ink-600 leading-relaxed line-clamp-3 flex-1">{{ j.description }}</p>
+        <span class="text-xs font-semibold text-brand-700 group-hover:text-brand-800">View journal →</span>
+      </a>
+    {% empty %}
+      <div class="col-span-3 py-16 text-center text-sm text-ink-600">No journals available yet.</div>
+    {% endfor %}
+  </div>
+
+  {% if user.can_submit_paper %}
+    <section class="bg-brand-50 border border-brand-100 rounded-xl p-6">
+      <h3 class="font-semibold text-brand-900">Ready to submit?</h3>
+      <p class="mt-1 text-sm text-brand-800">Choose a journal above to view its scope and submit your manuscript. All submissions go through double-blind peer review.</p>
+    </section>
+  {% endif %}
+
+</div>
+{% endblock %}

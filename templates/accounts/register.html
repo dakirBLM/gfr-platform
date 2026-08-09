@@ -1,0 +1,54 @@
+{% extends 'base.html' %}
+
+{% block title %}Join GFR · Create your academic profile{% endblock %}
+
+{% block content %}
+<section class="max-w-2xl mx-auto px-4 sm:px-6 py-16">
+  <div class="bg-white border border-ink-100 rounded-2xl p-8 shadow-sm">
+    <p class="text-xs font-semibold text-brand-700 uppercase tracking-wider">Membership</p>
+    <h1 class="mt-1 font-serif text-3xl font-semibold">Join the Global Forum for Researchers</h1>
+    <p class="mt-2 text-sm text-ink-600">It takes a minute. You can complete your full academic profile after signing up.</p>
+
+    <form method="post" class="mt-8 space-y-5">
+      {% csrf_token %}
+
+      {% if form.non_field_errors %}
+        <div class="rounded-md bg-rose-50 border border-rose-200 text-rose-800 text-sm px-3 py-2">
+          {{ form.non_field_errors|join:" " }}
+        </div>
+      {% endif %}
+
+      <div class="grid sm:grid-cols-2 gap-4">
+        {% include 'accounts/_field.html' with field=form.first_name %}
+        {% include 'accounts/_field.html' with field=form.last_name %}
+      </div>
+      {% include 'accounts/_field.html' with field=form.username %}
+      {% include 'accounts/_field.html' with field=form.email %}
+      <div class="grid sm:grid-cols-2 gap-4">
+        {% include 'accounts/_field.html' with field=form.affiliation %}
+        {% include 'accounts/_field.html' with field=form.country %}
+      </div>
+      {% include 'accounts/_field.html' with field=form.role %}
+      <div class="grid sm:grid-cols-2 gap-4">
+        {% include 'accounts/_field.html' with field=form.password1 %}
+        {% include 'accounts/_field.html' with field=form.password2 %}
+      </div>
+
+      <label class="flex items-start gap-3 text-sm text-ink-700">
+        <input type="checkbox" name="{{ form.accepted_ethics_code.html_name }}" required
+               class="mt-0.5 w-4 h-4 rounded border-ink-200 text-brand-700 focus:ring-brand-500">
+        <span>I commit to the GFR <a href="#" class="text-brand-700 hover:text-brand-800 font-medium">Scientific Code of Ethics</a> — academic honesty, respect for IP, and zero tolerance for plagiarism or falsification.</span>
+      </label>
+      {% if form.accepted_ethics_code.errors %}
+        <p class="text-xs text-rose-700">{{ form.accepted_ethics_code.errors|join:" " }}</p>
+      {% endif %}
+
+      <button class="w-full px-4 py-2.5 rounded-md bg-brand-700 text-white font-semibold hover:bg-brand-800">Create my account</button>
+    </form>
+
+    <p class="mt-6 text-sm text-ink-600 text-center">
+      Already a member? <a href="{% url 'accounts:login' %}" class="font-semibold text-brand-700 hover:text-brand-800">Sign in</a>
+    </p>
+  </div>
+</section>
+{% endblock %}

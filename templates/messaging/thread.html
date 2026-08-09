@@ -1,0 +1,174 @@
+{% extends 'dashboard_base.html' %}
+
+{% block title %}{% if conv.is_group %}{{ conv.name }}{% elif other %}{{ other.display_name }}{% else %}Thread{% endif %} · Messages · GFR{% endblock %}
+{% block topbar_title %}{% if conv.is_group %}{{ conv.name }}{% elif other %}{{ other.display_name }}{% else %}Thread{% endif %}{% endblock %}
+
+{% block flash_messages %}{% endblock %}{# Flash messages break the thread layout — suppress them #}
+
+{% block extra_head %}
+<style>
+  .chat-scroll { scroll-behavior: smooth; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl flex flex-col" style="height: calc(100vh - 9.5rem); min-height: 400px;">
+
+  {# Thread header #}
+  <div class="bg-white border border-ink-100 rounded-xl px-5 py-4 mb-4 shrink-0">
+    {% if conv.is_group %}
+      {# Group header — project name + member avatars #}
+      <div class="flex items-center justify-between gap-4">
+        <div class="flex items-center gap-3 min-w-0">
+          {# Group icon tile — no fragile inline positioning #}
+          <div class="w-11 h-11 rounded-xl bg-gradient-to-br from-brand-700 to-brand-800 flex items-center justify-center shrink-0">
+            <svg class="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 20 20">
+              <path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v1h8v-1zM6 8a2 2 0 11-4 0 2 2 0 014 0zM16 18v-1a5.972 5.972 0 00-.75-2.906A3.005 3.005 0 0119 15v1h-3zM4.75 14.094A5.973 5.973 0 004 17v1H1v-1a3 3 0 013.75-2.906z"/>
+            </svg>
+          </div>
+          <div class="min-w-0">
+            <div class="flex items-center gap-2">
+              <p class="text-sm font-semibold text-ink-900 truncate">{{ conv.name }}</p>
+              <span class="px-1.5 py-0.5 text-[10px] font-semibold bg-brand-100 text-brand-700 rounded uppercase tracking-wide">Group</span>
+            </div>
+            <p class="text-xs text-ink-500">{{ group_members|length }} member{{ group_members|length|pluralize }}</p>
+          </div>
+        </div>
+        <div class="flex items-center gap-3 shrink-0">
+          {% if conv.project %}
+            <a href="{% url 'dashboard:project_detail' conv.project.slug %}"
+               class="text-xs text-brand-700 hover:text-brand-800 font-semibold inline-flex items-center gap-1">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4h6l2 3h8v11a2 2 0 01-2 2H4a2 2 0 01-2-2V6a2 2 0 012-2z"/></svg>
+              Project
+            </a>
+          {% endif %}
+          <a href="{% url 'dashboard:message_inbox' %}" class="text-xs text-ink-500 hover:text-brand-700 inline-flex items-center gap-1">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10 19l-7-7 7-7"/></svg>
+            Inbox
+          </a>
+        </div>
+      </div>
+
+      {# Expandable member list #}
+      <details class="mt-3 group">
+        <summary class="cursor-pointer text-xs text-ink-500 hover:text-ink-700 inline-flex items-center gap-1 list-none">
+          <svg class="w-3 h-3 transition-transform group-open:rotate-90" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+          Show all members
+        </summary>
+        <div class="mt-2 flex flex-wrap gap-2">
+          {% for m in group_members %}
+            <a href="{% url 'dashboard:researcher_profile' m.username %}" class="flex items-center gap-1.5 px-2 py-1 rounded-md bg-ink-50 hover:bg-ink-100 text-xs text-ink-700">
+              <img src="{{ m.avatar_url }}" alt="{{ m.display_name }}" class="w-5 h-5 rounded-full object-cover">
+              {{ m.display_name }}
+              {% if m == request.user %}<span class="text-brand-600 font-medium">(you)</span>{% endif %}
+            </a>
+          {% endfor %}
+        </div>
+      </details>
+
+    {% else %}
+      {# DM header — single person #}
+      <div class="flex items-center justify-between gap-4">
+        <div class="flex items-center gap-3 min-w-0">
+          <a href="{% url 'dashboard:researcher_profile' other.username %}">
+            <img src="{{ other.avatar_url }}" alt="{{ other.display_name }}"
+                 class="w-11 h-11 rounded-full object-cover bg-ink-100 ring-1 ring-ink-100 hover:ring-brand-400 transition-all">
+          </a>
+          <div class="min-w-0">
+            <a href="{% url 'dashboard:researcher_profile' other.username %}"
+               class="text-sm font-semibold text-ink-900 hover:text-brand-700 truncate block">{{ other.display_name }}</a>
+            <p class="text-xs text-ink-500 truncate">{{ other.get_role_display }}{% if other.affiliation %} · {{ other.affiliation }}{% endif %}</p>
+          </div>
+        </div>
+        <a href="{% url 'dashboard:message_inbox' %}" class="shrink-0 text-xs text-ink-500 hover:text-brand-700 inline-flex items-center gap-1">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10 19l-7-7 7-7"/></svg>
+          Inbox
+        </a>
+      </div>
+    {% endif %}
+  </div>
+
+  {# Message bubbles #}
+  <div id="chat-messages" class="chat-scroll flex-1 overflow-y-auto space-y-3 px-1 pb-2">
+    {% for msg in messages %}
+      <div class="flex {% if msg.sender == user and not conv.is_group %}justify-end{% else %}justify-start{% endif %} items-end gap-2.5">
+
+        {# Avatar — always show in groups, only for received in DMs #}
+        {% if conv.is_group or msg.sender != user %}
+          <a href="{% url 'dashboard:researcher_profile' msg.sender.username %}">
+            <img src="{{ msg.sender.avatar_url }}" alt="{{ msg.sender.display_name }}"
+                 class="w-8 h-8 rounded-full object-cover bg-ink-100 shrink-0 mb-0.5 hover:ring-2 hover:ring-brand-400 transition-all">
+          </a>
+        {% endif %}
+
+        <div class="{% if conv.is_group %}max-w-[80%]{% else %}max-w-[72%]{% endif %}">
+          {# Sender name — in groups always, in DMs only for received #}
+          {% if conv.is_group or msg.sender != user %}
+            <p class="text-[11px] ml-1 mb-1 font-medium {% if msg.sender == user %}text-brand-600{% else %}text-ink-500{% endif %}">
+              {% if msg.sender == user %}You{% else %}{{ msg.sender.display_name }}{% endif %}
+            </p>
+          {% endif %}
+
+          <div class="{% if msg.sender == user %}bg-brand-700 text-white rounded-2xl {% if not conv.is_group %}rounded-br-sm{% endif %}{% else %}bg-white border border-ink-100 text-ink-900 rounded-2xl rounded-bl-sm shadow-sm{% endif %} px-4 py-2.5 text-sm leading-relaxed">
+            {{ msg.body }}
+          </div>
+
+          <p class="text-[10px] text-ink-400 mt-1 {% if msg.sender == user and not conv.is_group %}text-right mr-1{% else %}ml-1{% endif %}">
+            {{ msg.created_at|timesince }} ago
+          </p>
+        </div>
+
+        {% if not conv.is_group and msg.sender == user %}
+          <img src="{{ user.avatar_url }}" alt="{{ user.display_name }}"
+               class="w-8 h-8 rounded-full object-cover bg-ink-100 shrink-0 mb-0.5">
+        {% endif %}
+
+      </div>
+    {% empty %}
+      <div class="flex items-center justify-center py-16 text-center">
+        <div>
+          {% if conv.is_group %}
+            <div class="w-16 h-16 rounded-full bg-brand-100 text-brand-700 flex items-center justify-center mx-auto mb-3">
+              <svg class="w-8 h-8" fill="currentColor" viewBox="0 0 20 20"><path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v1h8v-1z"/></svg>
+            </div>
+            <p class="text-sm font-medium text-ink-900">Welcome to the {{ conv.name }} group chat!</p>
+            <p class="text-xs text-ink-500 mt-1">{{ group_members|length }} members. Be the first to say something.</p>
+          {% else %}
+            <img src="{{ other.avatar_url }}" alt="{{ other.display_name }}"
+                 class="w-16 h-16 rounded-full object-cover bg-ink-100 mx-auto mb-3 ring-2 ring-ink-100">
+            <p class="text-sm font-medium text-ink-900">Start a conversation with {{ other.first_name }}</p>
+            <p class="text-xs text-ink-500 mt-1">Your messages are private.</p>
+          {% endif %}
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+
+  {# Reply box #}
+  <div class="shrink-0 mt-3">
+    <form method="post" action="" class="flex items-end gap-3 bg-white border border-ink-100 rounded-2xl px-4 py-3">
+      {% csrf_token %}
+      <img src="{{ user.avatar_url }}" alt="{{ user.display_name }}"
+           class="w-8 h-8 rounded-full object-cover bg-ink-100 shrink-0 mb-0.5">
+      <textarea name="body" rows="1"
+                placeholder="{% if conv.is_group %}Message {{ conv.name }}…{% else %}Message {{ other.display_name }}…{% endif %}"
+                required
+                class="flex-1 text-sm border-0 outline-none resize-none bg-transparent placeholder:text-ink-400 leading-relaxed py-0.5 max-h-32 overflow-y-auto"
+                style="field-sizing: content;"
+                onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();this.form.submit();}"></textarea>
+      <button type="submit"
+              class="shrink-0 w-9 h-9 rounded-full bg-brand-700 text-white flex items-center justify-center hover:bg-brand-800 transition-colors mb-0.5">
+        <svg class="w-4 h-4 ml-0.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M5 12h14M12 5l7 7-7 7"/>
+        </svg>
+      </button>
+    </form>
+  </div>
+
+</div>
+
+<script>
+  const chat = document.getElementById('chat-messages');
+  if (chat) chat.scrollTop = chat.scrollHeight;
+</script>
+{% endblock %}

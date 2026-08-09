@@ -1,0 +1,66 @@
+{% extends 'dashboard_base.html' %}
+
+{% block title %}New message · GFR{% endblock %}
+{% block topbar_eyebrow %}Messages{% endblock %}
+{% block topbar_title %}New conversation{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl space-y-5">
+  <a href="{% url 'dashboard:message_inbox' %}" class="inline-flex items-center gap-1 text-sm text-ink-600 hover:text-brand-700">
+    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10 19l-7-7 7-7"/></svg>
+    Inbox
+  </a>
+
+  <section class="bg-white border border-ink-100 rounded-xl p-6 sm:p-8">
+    <h2 class="font-serif text-xl font-semibold">New message</h2>
+
+    {% if error %}
+      <div class="mt-3 rounded-md bg-rose-50 border border-rose-200 text-rose-800 text-sm px-3 py-2">{{ error }}</div>
+    {% endif %}
+
+    {# Step 1: search for a recipient #}
+    <form method="get" action="" class="mt-5">
+      <label class="block">
+        <span class="text-sm font-medium text-ink-700">Search recipient</span>
+        <div class="relative mt-1">
+          <svg class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-ink-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35M11 19a8 8 0 100-16 8 8 0 000 16z"/></svg>
+          <input type="search" name="q" value="{{ q }}" autofocus placeholder="Search by name or username…"
+                 class="w-full pl-9 pr-3 py-2 text-sm rounded-md border border-ink-200 focus:outline-none focus:ring-2 focus:ring-brand-500">
+        </div>
+      </label>
+      <button type="submit" class="mt-2 px-4 py-2 rounded-md bg-ink-100 text-ink-700 text-sm font-medium hover:bg-ink-200">Search</button>
+    </form>
+
+    {% if users %}
+      <p class="mt-4 text-xs text-ink-600 uppercase tracking-wider font-semibold">Select a recipient</p>
+      <form method="post" action="" class="mt-2 space-y-5">
+        {% csrf_token %}
+        <input type="hidden" name="q" value="{{ q }}">
+
+        <div class="space-y-2">
+          {% for u in users %}
+            <label class="flex items-center gap-3 p-3 rounded-lg border border-ink-200 hover:border-brand-400 cursor-pointer has-[:checked]:border-brand-600 has-[:checked]:bg-brand-50">
+              <input type="radio" name="recipient" value="{{ u.pk }}" required class="text-brand-600 focus:ring-brand-500">
+              <img src="{{ u.avatar_url }}" alt="{{ u.display_name }}" class="w-9 h-9 rounded-full object-cover">
+              <div>
+                <div class="text-sm font-semibold text-ink-900">{{ u.display_name }}</div>
+                <div class="text-xs text-ink-600">{{ u.get_role_display }}{% if u.affiliation %} · {{ u.affiliation }}{% endif %}</div>
+              </div>
+            </label>
+          {% endfor %}
+        </div>
+
+        <label class="block">
+          <span class="text-sm font-medium text-ink-700">Message <span class="text-rose-600">*</span></span>
+          <textarea name="body" rows="5" required placeholder="Write your message…"
+                    class="mt-1 w-full rounded-md border border-ink-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"></textarea>
+        </label>
+
+        <button type="submit" class="px-5 py-2.5 rounded-md bg-brand-700 text-white text-sm font-semibold hover:bg-brand-800">Send message</button>
+      </form>
+    {% elif q %}
+      <p class="mt-5 text-sm text-ink-600 italic">No researchers found for "{{ q }}".</p>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}

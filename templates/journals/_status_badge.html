@@ -1,0 +1,12 @@
+{# Usage: {% include 'journals/_status_badge.html' with status=ms.status label=ms.get_status_display %} #}
+<span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
+  {% if status == 'draft' %}bg-gray-100 text-gray-700
+  {% elif status == 'submitted' %}bg-blue-50 text-blue-700
+  {% elif status == 'under_review' %}bg-yellow-50 text-yellow-700
+  {% elif status == 'revision_required' %}bg-orange-50 text-orange-700
+  {% elif status == 'accepted' %}bg-emerald-50 text-emerald-700
+  {% elif status == 'rejected' %}bg-rose-50 text-rose-700
+  {% elif status == 'published' %}bg-brand-50 text-brand-700
+  {% else %}bg-gray-100 text-gray-700{% endif %}">
+  {{ label }}
+</span>

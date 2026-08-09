@@ -1,0 +1,40 @@
+{% extends 'dashboard_base.html' %}
+
+{% block title %}Review queue · GFR{% endblock %}
+{% block topbar_eyebrow %}Peer Review{% endblock %}
+{% block topbar_title %}My review queue{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl space-y-4">
+  <p class="text-sm text-ink-600">{{ reviews|length }} active assignment{{ reviews|length|pluralize }}</p>
+
+  {% if reviews %}
+    {% for r in reviews %}
+      <div class="bg-white border border-ink-100 rounded-xl p-5 flex items-start justify-between gap-4">
+        <div class="min-w-0 flex-1">
+          <div class="flex items-center gap-3">
+            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
+              {% if r.status == 'invited' %}bg-blue-50 text-blue-700
+              {% elif r.status == 'accepted' %}bg-yellow-50 text-yellow-700
+              {% else %}bg-emerald-50 text-emerald-700{% endif %}">
+              {{ r.get_status_display }}
+            </span>
+            {% if r.due_date %}<span class="text-xs text-ink-600">Due {{ r.due_date|date:"N j, Y" }}</span>{% endif %}
+          </div>
+          <h3 class="mt-2 font-semibold text-ink-900">{{ r.manuscript.title }}</h3>
+          <p class="text-xs text-ink-600 mt-0.5">{{ r.manuscript.journal.name }} · Invited {{ r.invited_at|date:"N j, Y" }}</p>
+        </div>
+        <a href="{% url 'dashboard:review_detail' r.pk %}"
+           class="px-3 py-1.5 rounded-md bg-brand-700 text-white text-xs font-semibold hover:bg-brand-800 whitespace-nowrap">
+          {% if r.status == 'invited' %}Respond{% else %}View / submit{% endif %}
+        </a>
+      </div>
+    {% endfor %}
+  {% else %}
+    <div class="bg-white border border-ink-100 rounded-xl p-16 text-center">
+      <p class="text-sm font-medium text-ink-900">No pending reviews.</p>
+      <p class="mt-1 text-sm text-ink-600">The editorial team will notify you when a manuscript needs review.</p>
+    </div>
+  {% endif %}
+</div>
+{% endblock %}

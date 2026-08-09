@@ -1,0 +1,36 @@
+# Python / virtualenv
+.venv/
+venv/
+env/
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.eggs/
+dist/
+build/
+
+# Environment & secrets
+.env
+.env.local
+*.pem
+
+# Django
+staticfiles/
+*.log
+
+# Keep the shared demo database in git (intentional for this project).
+# Do NOT ignore db.sqlite3.
+
+# IDE / OS
+.idea/
+.vscode/
+*.swp
+.DS_Store
+.claude/
+
+# Coverage / pytest
+.coverage
+htmlcov/
+.pytest_cache/
+.mypy_cache/

@@ -1,0 +1,75 @@
+{% extends 'dashboard_base.html' %}
+
+{% block title %}{{ journal.name }} · GFR{% endblock %}
+{% block topbar_eyebrow %}Journals{% endblock %}
+{% block topbar_title %}{{ journal.name }}{% endblock %}
+
+{% block content %}
+<div class="max-w-5xl space-y-6">
+
+  <div class="bg-white border border-ink-100 rounded-xl p-6 sm:p-8 flex flex-col sm:flex-row gap-6 justify-between">
+    <div class="flex-1 min-w-0">
+      {% if journal.issn %}<p class="text-xs text-ink-600 mb-2">ISSN {{ journal.issn }}</p>{% endif %}
+      <h1 class="font-serif text-2xl font-semibold">{{ journal.name }}</h1>
+      <p class="mt-3 text-ink-700 leading-relaxed">{{ journal.description }}</p>
+      {% if journal.scope %}
+        <div class="mt-4 p-4 bg-ink-50 rounded-lg">
+          <p class="text-xs font-semibold text-ink-700 uppercase tracking-wider mb-1">Aims & Scope</p>
+          <p class="text-sm text-ink-700">{{ journal.scope }}</p>
+        </div>
+      {% endif %}
+    </div>
+    {% if can_submit %}
+      <div class="shrink-0">
+        <a href="{% url 'dashboard:journal_submit' journal.slug %}"
+           class="inline-flex items-center gap-2 px-5 py-2.5 rounded-md bg-brand-700 text-white text-sm font-semibold hover:bg-brand-800">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5-5 5 5M12 5v12"/></svg>
+          Submit manuscript
+        </a>
+      </div>
+    {% endif %}
+  </div>
+
+  <div class="grid lg:grid-cols-3 gap-6">
+    <div class="lg:col-span-2">
+      <section class="bg-white border border-ink-100 rounded-xl p-6">
+        <h2 class="font-serif text-lg font-semibold">Issues</h2>
+        {% if recent_issues %}
+          <ul class="mt-4 divide-y divide-ink-100">
+            {% for issue in recent_issues %}
+              <li class="py-3 flex items-center justify-between text-sm">
+                <span class="font-medium">Vol. {{ issue.volume }}, No. {{ issue.number }} ({{ issue.year }})</span>
+                {% if issue.title %}<span class="text-ink-600 text-xs italic">{{ issue.title }}</span>{% endif %}
+              </li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <p class="mt-3 text-sm text-ink-600 italic">No issues published yet.</p>
+        {% endif %}
+      </section>
+    </div>
+    <aside class="space-y-4">
+      <section class="bg-white border border-ink-100 rounded-xl p-5">
+        <h3 class="text-sm font-semibold text-ink-900">Editorial team</h3>
+        {% if journal.editors.all %}
+          <ul class="mt-3 space-y-2">
+            {% for ed in journal.editors.all %}
+              <li class="flex items-center gap-2">
+                <img src="{{ ed.avatar_url }}" alt="{{ ed.display_name }}" class="w-7 h-7 rounded-full object-cover bg-ink-100">
+                <a href="{% url 'dashboard:researcher_profile' ed.username %}" class="text-sm text-ink-700 hover:text-brand-700">{{ ed.display_name }}</a>
+              </li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <p class="mt-2 text-xs text-ink-600">No editors listed.</p>
+        {% endif %}
+      </section>
+      <section class="bg-white border border-ink-100 rounded-xl p-5">
+        <h3 class="text-sm font-semibold text-ink-900">Review process</h3>
+        <p class="mt-2 text-xs text-ink-600 leading-relaxed">Double-blind peer review. Identities of authors and reviewers are concealed throughout the process.</p>
+      </section>
+    </aside>
+  </div>
+
+</div>
+{% endblock %}

@@ -1,0 +1,146 @@
+{% extends 'dashboard_base.html' %}
+
+{% block title %}Researchers · GFR{% endblock %}
+{% block topbar_eyebrow %}Network{% endblock %}
+{% block topbar_title %}Researcher Directory{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl space-y-6">
+
+  {# Search + filter bar #}
+  <section class="bg-white border border-ink-100 rounded-xl p-5">
+    <form method="get" action="" class="flex flex-col sm:flex-row gap-3">
+      <div class="relative flex-1">
+        <svg class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-ink-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35M11 19a8 8 0 100-16 8 8 0 000 16z"/>
+        </svg>
+        <input type="search" name="q" value="{{ q }}" autofocus
+               placeholder="Search by name, affiliation, or research interest…"
+               class="w-full pl-9 pr-3 py-2 text-sm rounded-md border border-ink-200 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500">
+      </div>
+
+      <select name="role"
+              class="text-sm rounded-md border border-ink-200 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-500">
+        <option value="">All roles</option>
+        {% for val, label in role_choices %}
+          <option value="{{ val }}" {% if selected_role == val %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+
+      <select name="country"
+              class="text-sm rounded-md border border-ink-200 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-500">
+        <option value="">All countries</option>
+        {% for c in countries %}
+          <option value="{{ c }}" {% if selected_country == c %}selected{% endif %}>{{ c }}</option>
+        {% endfor %}
+      </select>
+
+      <button type="submit"
+              class="px-4 py-2 rounded-md bg-brand-700 text-white text-sm font-semibold hover:bg-brand-800">
+        Search
+      </button>
+      {% if q or selected_role or selected_country %}
+        <a href="{% url 'dashboard:researcher_directory' %}"
+           class="px-4 py-2 rounded-md border border-ink-200 text-ink-700 text-sm font-semibold hover:bg-ink-50">
+          Clear
+        </a>
+      {% endif %}
+    </form>
+  </section>
+
+  {# Results summary #}
+  <div class="flex items-center justify-between">
+    <p class="text-sm text-ink-600">
+      {% if q or selected_role or selected_country %}
+        <span class="font-medium text-ink-900">{{ total }}</span> result{{ total|pluralize }} matching your filters
+      {% else %}
+        <span class="font-medium text-ink-900">{{ total }}</span> researcher{{ total|pluralize }} in the community
+      {% endif %}
+    </p>
+    {% if page_obj.paginator.num_pages > 1 %}
+      <p class="text-xs text-ink-600">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</p>
+    {% endif %}
+  </div>
+
+  {# Researcher cards grid #}
+  {% if researchers %}
+    <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      {% for r in researchers %}
+        <a href="{% url 'dashboard:researcher_profile' r.username %}"
+           class="group bg-white border border-ink-100 rounded-xl p-5 flex flex-col gap-4 hover:border-brand-200 hover:shadow-sm transition-all">
+
+          <div class="flex items-center gap-3">
+            <img src="{{ r.avatar_url }}" alt="{{ r.display_name }}"
+                 class="w-12 h-12 rounded-full object-cover bg-ink-100 ring-1 ring-ink-100 shrink-0">
+            <div class="min-w-0">
+              <div class="font-semibold text-ink-900 truncate group-hover:text-brand-700">{{ r.display_name }}</div>
+              <span class="inline-flex items-center px-2 py-0.5 rounded-full bg-brand-50 text-brand-700 text-[11px] font-medium mt-0.5">
+                {{ r.get_role_display }}
+              </span>
+            </div>
+          </div>
+
+          {% if r.headline %}
+            <p class="text-sm text-ink-700 leading-snug line-clamp-2">{{ r.headline }}</p>
+          {% endif %}
+
+          {% if r.affiliation or r.country %}
+            <p class="text-xs text-ink-600 flex items-center gap-1">
+              <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M17.657 16.657L13.414 20.9a2 2 0 01-2.828 0l-4.243-4.243a8 8 0 1111.314 0z"/>
+                <path stroke-linecap="round" stroke-linejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
+              </svg>
+              <span class="truncate">{{ r.affiliation }}{% if r.affiliation and r.country %} · {% endif %}{{ r.country }}</span>
+            </p>
+          {% endif %}
+
+          {% with tags=r.interests.all %}
+            {% if tags %}
+              <div class="flex flex-wrap gap-1.5 mt-auto">
+                {% for tag in tags|slice:":3" %}
+                  <span class="px-2 py-0.5 rounded-full bg-ink-100 text-ink-700 text-[11px]">{{ tag.name }}</span>
+                {% endfor %}
+                {% if tags|length > 3 %}
+                  <span class="px-2 py-0.5 rounded-full bg-ink-100 text-ink-600 text-[11px]">+{{ tags|length|add:"-3" }} more</span>
+                {% endif %}
+              </div>
+            {% endif %}
+          {% endwith %}
+
+          <div class="flex items-center justify-between text-[11px] text-ink-500 pt-2 border-t border-ink-50 mt-auto">
+            <span>{{ r.followers.count }} follower{{ r.followers.count|pluralize }}</span>
+            {% if r.pk in following_ids %}<span class="font-semibold text-brand-700">Following</span>{% endif %}
+          </div>
+        </a>
+      {% endfor %}
+    </div>
+
+    {# Pagination #}
+    {% if page_obj.paginator.num_pages > 1 %}
+      <nav class="flex justify-center gap-2 pt-2">
+        {% if page_obj.has_previous %}
+          <a href="?{% if q %}q={{ q }}&{% endif %}{% if selected_role %}role={{ selected_role }}&{% endif %}{% if selected_country %}country={{ selected_country }}&{% endif %}page={{ page_obj.previous_page_number }}"
+             class="px-3 py-1.5 text-sm rounded-md border border-ink-200 hover:bg-ink-50">← Previous</a>
+        {% endif %}
+        {% if page_obj.has_next %}
+          <a href="?{% if q %}q={{ q }}&{% endif %}{% if selected_role %}role={{ selected_role }}&{% endif %}{% if selected_country %}country={{ selected_country }}&{% endif %}page={{ page_obj.next_page_number }}"
+             class="px-3 py-1.5 text-sm rounded-md border border-ink-200 hover:bg-ink-50">Next →</a>
+        {% endif %}
+      </nav>
+    {% endif %}
+
+  {% else %}
+    <div class="bg-white border border-ink-100 rounded-xl p-16 text-center">
+      <div class="mx-auto w-12 h-12 rounded-full bg-ink-100 flex items-center justify-center mb-4">
+        <svg class="w-6 h-6 text-ink-600" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35M11 19a8 8 0 100-16 8 8 0 000 16z"/>
+        </svg>
+      </div>
+      <p class="text-sm font-medium text-ink-900">No researchers match your search.</p>
+      <p class="mt-1 text-sm text-ink-600">Try a different name, affiliation, or research interest.</p>
+      <a href="{% url 'dashboard:researcher_directory' %}" class="mt-4 inline-block text-sm font-semibold text-brand-700 hover:text-brand-800">Clear filters</a>
+    </div>
+  {% endif %}
+
+</div>
+{% endblock %}

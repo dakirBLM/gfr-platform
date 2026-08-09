@@ -1,0 +1,42 @@
+{% load static %}<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}Global Forum for Researchers{% endblock %}</title>
+  <meta name="description" content="An international academic social network and research management platform.">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'ui-sans-serif', 'system-ui'],
+            serif: ['Fraunces', 'ui-serif', 'Georgia'],
+          },
+          colors: {
+            ink:    { 50:'#f7f7f8', 100:'#eeeef1', 200:'#d8d9df', 600:'#4c4f5a', 700:'#363842', 900:'#15171c' },
+            brand:  { 50:'#eef4ff', 100:'#dbe7fe', 500:'#3b6cf2', 600:'#2c54d4', 700:'#1f3fa4', 800:'#1a3380', 900:'#152858' },
+            accent: { 500:'#c08a2e', 600:'#a07223' },
+          },
+        },
+      },
+    };
+  </script>
+  <style>
+    body { font-feature-settings: 'cv11','ss01','ss03'; }
+    .prose-academic h1, .prose-academic h2, .prose-academic h3 { font-family: 'Fraunces', serif; }
+  </style>
+</head>
+<body class="min-h-screen bg-ink-50 text-ink-900 font-sans antialiased flex flex-col">
+  {% include 'components/navbar.html' %}
+  {% include 'components/messages.html' %}
+  <main class="flex-1">
+    {% block content %}{% endblock %}
+  </main>
+  {% include 'components/footer.html' %}
+</body>
+</html>

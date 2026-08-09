@@ -1,0 +1,103 @@
+{% extends 'dashboard_base.html' %}
+
+{% block title %}Messages · GFR{% endblock %}
+{% block topbar_eyebrow %}Network{% endblock %}
+{% block topbar_title %}Messages{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl space-y-4">
+
+  <div class="flex items-center justify-between">
+    <p class="text-sm text-ink-600">{{ conv_data|length }} conversation{{ conv_data|length|pluralize }}</p>
+    <a href="{% url 'dashboard:message_new' %}"
+       class="inline-flex items-center gap-1.5 px-4 py-2 rounded-md bg-brand-700 text-white text-sm font-semibold hover:bg-brand-800">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
+      New message
+    </a>
+  </div>
+
+  {% if conv_data %}
+    <div class="bg-white border border-ink-100 rounded-2xl overflow-hidden divide-y divide-ink-50">
+      {% for item in conv_data %}
+        <a href="{% url 'dashboard:message_thread' item.conv.pk %}"
+           class="flex items-center gap-4 px-5 py-4 hover:bg-ink-50 transition-colors {% if item.unread %}bg-brand-50/40{% endif %}">
+
+          {# Avatar — simple icon for groups, photo for DMs #}
+          <div class="relative shrink-0">
+            {% if item.is_group %}
+              <div class="w-12 h-12 rounded-xl bg-gradient-to-br from-brand-700 to-brand-800 flex items-center justify-center">
+                <svg class="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 20 20">
+                  <path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v1h8v-1zM6 8a2 2 0 11-4 0 2 2 0 014 0zM16 18v-1a5.972 5.972 0 00-.75-2.906A3.005 3.005 0 0119 15v1h-3zM4.75 14.094A5.973 5.973 0 004 17v1H1v-1a3 3 0 013.75-2.906z"/>
+                </svg>
+              </div>
+              {% if item.unread %}
+                <span class="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-rose-500 border-2 border-white"></span>
+              {% endif %}
+            {% else %}
+              <img src="{{ item.other.avatar_url }}" alt="{{ item.other.display_name }}"
+                   class="w-12 h-12 rounded-full object-cover bg-ink-100 ring-1 ring-ink-100">
+              {% if item.unread %}
+                <span class="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-brand-600 border-2 border-white"></span>
+              {% endif %}
+            {% endif %}
+          </div>
+
+          {# Text content #}
+          <div class="flex-1 min-w-0">
+            <div class="flex items-baseline justify-between gap-2">
+              <span class="text-sm {% if item.unread %}font-bold text-ink-900{% else %}font-semibold text-ink-800{% endif %} truncate">
+                {% if item.is_group %}{{ item.group_name }}{% else %}{{ item.other.display_name|default:"Unknown" }}{% endif %}
+              </span>
+              <span class="text-[11px] text-ink-400 shrink-0 whitespace-nowrap">{{ item.conv.last_message_at|timesince }} ago</span>
+            </div>
+
+            <p class="text-[11px] mt-0.5 text-ink-500 truncate">
+              {% if item.is_group %}
+                {{ item.member_count }} member{{ item.member_count|pluralize }} · Project group chat
+              {% elif item.other %}
+                {{ item.other.get_role_display }}{% if item.other.affiliation %} · {{ item.other.affiliation }}{% endif %}
+              {% endif %}
+            </p>
+
+            {% if item.last_msg %}
+              <p class="text-xs mt-1 {% if item.unread %}text-ink-800 font-medium{% else %}text-ink-500{% endif %} truncate">
+                {% if item.is_group %}
+                  <span class="text-ink-400">{{ item.last_msg.sender.first_name }}: </span>
+                {% elif item.last_msg.sender == request.user %}
+                  <span class="text-ink-400">You: </span>
+                {% endif %}
+                {{ item.last_msg.body }}
+              </p>
+            {% else %}
+              <p class="text-xs mt-1 text-ink-400 italic">No messages yet</p>
+            {% endif %}
+          </div>
+
+          {# Right side — unread badge or arrow #}
+          {% if item.unread %}
+            <span class="shrink-0 min-w-[1.25rem] h-5 rounded-full bg-brand-600 text-white text-[10px] font-bold flex items-center justify-center px-1.5">{{ item.unread }}</span>
+          {% else %}
+            <svg class="w-4 h-4 text-ink-200 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+          {% endif %}
+
+        </a>
+      {% endfor %}
+    </div>
+
+  {% else %}
+    <div class="bg-white border border-ink-100 rounded-2xl p-16 text-center">
+      <div class="mx-auto w-16 h-16 rounded-full bg-ink-100 flex items-center justify-center mb-4">
+        <svg class="w-7 h-7 text-ink-400" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M21 15a4 4 0 01-4 4H7l-4 3V7a4 4 0 014-4h10a4 4 0 014 4v8z"/>
+        </svg>
+      </div>
+      <p class="text-sm font-semibold text-ink-900">No messages yet</p>
+      <p class="mt-1 text-sm text-ink-500">Send a message or join a project to access its group chat.</p>
+      <a href="{% url 'dashboard:message_new' %}" class="mt-5 inline-block px-5 py-2.5 rounded-md bg-brand-700 text-white text-sm font-semibold hover:bg-brand-800">
+        Start a conversation
+      </a>
+    </div>
+  {% endif %}
+
+</div>
+{% endblock %}

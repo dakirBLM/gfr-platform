@@ -1,0 +1,97 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block title %}GFR · A global academic network for researchers{% endblock %}
+
+{% block content %}
+<section class="relative overflow-hidden">
+  <div class="absolute inset-0 bg-gradient-to-br from-brand-900 via-brand-800 to-brand-700"></div>
+  <div class="absolute inset-0 opacity-20" style="background-image: radial-gradient(circle at 20% 30%, white 1px, transparent 1px), radial-gradient(circle at 80% 70%, white 1px, transparent 1px); background-size: 40px 40px;"></div>
+  <div class="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 lg:py-28 text-white">
+    <div class="max-w-3xl">
+      <span class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 border border-white/20 text-xs font-medium tracking-wide uppercase">
+        Global · Peer-reviewed · Collaborative
+      </span>
+      <h1 class="mt-5 font-serif text-4xl sm:text-5xl lg:text-6xl font-semibold leading-tight">
+        Where the world's researchers meet, publish, and build together.
+      </h1>
+      <p class="mt-5 text-lg text-brand-50/90 max-w-2xl">
+        GFR is an international academic ecosystem for scientific research, peer-reviewed publishing,
+        and cross-border collaboration — built to turn knowledge into societal impact.
+      </p>
+      <div class="mt-8 flex flex-wrap gap-3">
+        {% if user.is_authenticated %}
+          <a href="#" class="px-5 py-3 rounded-md bg-white text-brand-800 font-semibold hover:bg-brand-50">Go to dashboard</a>
+        {% else %}
+          <a href="{% url 'accounts:register' %}" class="px-5 py-3 rounded-md bg-white text-brand-800 font-semibold hover:bg-brand-50">Join the forum</a>
+          <a href="{% url 'accounts:login' %}" class="px-5 py-3 rounded-md bg-white/10 border border-white/30 text-white font-semibold hover:bg-white/20">Sign in</a>
+        {% endif %}
+      </div>
+    </div>
+
+    <dl class="mt-14 grid grid-cols-2 sm:grid-cols-4 gap-6 max-w-3xl">
+      <div><dt class="text-xs uppercase tracking-wider text-brand-100/80">Researchers</dt><dd class="mt-1 font-serif text-3xl font-semibold">{{ stats.researchers|intcomma }}</dd></div>
+      <div><dt class="text-xs uppercase tracking-wider text-brand-100/80">Institutions</dt><dd class="mt-1 font-serif text-3xl font-semibold">{{ stats.institutions|intcomma }}</dd></div>
+      <div><dt class="text-xs uppercase tracking-wider text-brand-100/80">Journals</dt><dd class="mt-1 font-serif text-3xl font-semibold">{{ stats.journals|intcomma }}</dd></div>
+      <div><dt class="text-xs uppercase tracking-wider text-brand-100/80">Active projects</dt><dd class="mt-1 font-serif text-3xl font-semibold">{{ stats.projects|intcomma }}</dd></div>
+    </dl>
+  </div>
+</section>
+
+<section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 lg:py-24">
+  <div class="max-w-2xl">
+    <p class="text-sm font-semibold text-brand-700 uppercase tracking-wider">Why GFR</p>
+    <h2 class="mt-2 font-serif text-3xl lg:text-4xl font-semibold">An integrated platform, not a publishing site.</h2>
+    <p class="mt-4 text-ink-600 text-lg">Four connected pillars — publishing, collaboration, events, and funding — sharing one academic identity per researcher.</p>
+  </div>
+
+  <div class="mt-12 grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
+    {% for p in pillars %}
+      <article class="bg-white rounded-xl border border-ink-100 p-6 hover:shadow-md transition-shadow">
+        <div class="w-10 h-10 rounded-lg bg-brand-50 text-brand-700 flex items-center justify-center mb-4">
+          {% if p.icon == 'book' %}<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 5a2 2 0 012-2h6v18H5a2 2 0 01-2-2V5zm10-2h6a2 2 0 012 2v14a2 2 0 01-2 2h-6V3z"/></svg>
+          {% elif p.icon == 'users' %}<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20v-1a4 4 0 00-4-4H7a4 4 0 00-4 4v1m6-9a4 4 0 100-8 4 4 0 000 8zm10 9v-1a4 4 0 00-3-3.87M14 3.13a4 4 0 010 7.75"/></svg>
+          {% elif p.icon == 'calendar' %}<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 2v3M16 2v3M3 9h18M5 5h14a2 2 0 012 2v12a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2z"/></svg>
+          {% else %}<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 21a9 9 0 100-18 9 9 0 000 18zm-7-7l3-3m8 8l3-3M5 10l3 3m8-8l3 3"/></svg>{% endif %}
+        </div>
+        <h3 class="font-serif text-lg font-semibold">{{ p.title }}</h3>
+        <p class="mt-2 text-sm text-ink-600 leading-relaxed">{{ p.body }}</p>
+      </article>
+    {% endfor %}
+  </div>
+</section>
+
+<section class="bg-white border-y border-ink-100">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 lg:py-24 grid lg:grid-cols-2 gap-12">
+    <div>
+      <p class="text-sm font-semibold text-brand-700 uppercase tracking-wider">Vision</p>
+      <h3 class="mt-2 font-serif text-3xl font-semibold">A leading global platform for science and innovation.</h3>
+      <p class="mt-4 text-ink-600">Building an integrated international academic community whose work contributes directly to societal development.</p>
+    </div>
+    <div>
+      <p class="text-sm font-semibold text-brand-700 uppercase tracking-wider">Mission</p>
+      <ul class="mt-4 space-y-3 text-ink-700">
+        <li class="flex gap-3"><span class="mt-1.5 w-1.5 h-1.5 rounded-full bg-brand-700"></span>Open access to scientific knowledge</li>
+        <li class="flex gap-3"><span class="mt-1.5 w-1.5 h-1.5 rounded-full bg-brand-700"></span>Peer-reviewed academic publishing</li>
+        <li class="flex gap-3"><span class="mt-1.5 w-1.5 h-1.5 rounded-full bg-brand-700"></span>Support for collaborative research projects</li>
+        <li class="flex gap-3"><span class="mt-1.5 w-1.5 h-1.5 rounded-full bg-brand-700"></span>Stronger ties between researchers and institutions</li>
+        <li class="flex gap-3"><span class="mt-1.5 w-1.5 h-1.5 rounded-full bg-brand-700"></span>Research-driven societal advancement</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 lg:py-24">
+  <div class="rounded-2xl bg-gradient-to-br from-brand-800 to-brand-700 text-white p-10 lg:p-14 flex flex-col lg:flex-row items-start lg:items-center gap-6 justify-between">
+    <div>
+      <h3 class="font-serif text-3xl font-semibold">Ready to publish, collaborate, or review?</h3>
+      <p class="mt-2 text-brand-50/90">Create your academic profile in minutes — your research, projects, and reviews live in one place.</p>
+    </div>
+    {% if not user.is_authenticated %}
+      <a href="{% url 'accounts:register' %}" class="px-6 py-3 rounded-md bg-white text-brand-800 font-semibold hover:bg-brand-50 whitespace-nowrap">Create your profile</a>
+    {% else %}
+      <a href="#" class="px-6 py-3 rounded-md bg-white text-brand-800 font-semibold hover:bg-brand-50 whitespace-nowrap">Open dashboard</a>
+    {% endif %}
+  </div>
+</section>
+{% endblock %}

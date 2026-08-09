@@ -1,0 +1,166 @@
+{% load static %}<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}Dashboard · GFR{% endblock %}</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter','ui-sans-serif','system-ui'],
+            serif: ['Fraunces','ui-serif','Georgia'],
+          },
+          colors: {
+            ink:    { 50:'#f7f7f8', 100:'#eeeef1', 200:'#d8d9df', 600:'#4c4f5a', 700:'#363842', 900:'#15171c' },
+            brand:  { 50:'#eef4ff', 100:'#dbe7fe', 500:'#3b6cf2', 600:'#2c54d4', 700:'#1f3fa4', 800:'#1a3380', 900:'#152858' },
+          },
+        },
+      },
+    };
+  </script>
+  {% block extra_head %}{% endblock %}
+</head>
+<body class="min-h-screen bg-ink-50 text-ink-900 font-sans antialiased">
+  <div class="flex min-h-screen">
+    {% include 'dashboard/_sidebar.html' %}
+    <div id="sidebar-backdrop" class="fixed inset-0 z-40 hidden bg-ink-900/40 lg:hidden" aria-hidden="true"></div>
+
+    <div class="flex-1 flex flex-col min-w-0">
+      {# Top bar inlined so child templates can override topbar_title and topbar_eyebrow blocks. #}
+      <header class="bg-white border-b border-ink-100">
+        <div class="px-6 lg:px-10 h-14 flex items-center justify-between gap-4">
+          <div class="flex items-center gap-3 min-w-0">
+            <button id="sidebar-toggle" class="lg:hidden p-2 -ml-2 rounded-md hover:bg-ink-100" aria-label="Open menu" aria-controls="dashboard-sidebar" aria-expanded="false">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16"/></svg>
+            </button>
+            <div class="min-w-0">
+              <div class="text-[11px] uppercase tracking-wider text-ink-600">{% block topbar_eyebrow %}Workspace{% endblock %}</div>
+              <h1 class="font-serif text-lg font-semibold leading-tight truncate">{% block topbar_title %}Home{% endblock %}</h1>
+            </div>
+          </div>
+
+          <div class="hidden md:flex flex-1 max-w-md">
+            <label class="relative w-full">
+              <span class="sr-only">Search</span>
+              <svg class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-ink-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35M11 19a8 8 0 100-16 8 8 0 000 16z"/></svg>
+              <input type="search" placeholder="Search researchers, papers, projects…"
+                     class="w-full pl-9 pr-3 py-2 text-sm rounded-md bg-ink-50 border border-ink-100 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:bg-white">
+            </label>
+          </div>
+
+          <div class="flex items-center gap-2">
+            {# Notification bell — <details> gives us a CSS-only dropdown, no JS needed #}
+            <details class="relative" id="notif-details">
+              <summary class="relative p-2 rounded-md hover:bg-ink-100 cursor-pointer list-none" aria-label="Notifications">
+                <svg class="w-5 h-5 text-ink-700" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 17h5l-1.4-1.4A2 2 0 0118 14V11a6 6 0 10-12 0v3a2 2 0 01-.6 1.6L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
+                {% if unread_notifications_count %}
+                  <span class="absolute top-1 right-1 min-w-[1.1rem] h-[1.1rem] rounded-full bg-rose-500 text-white text-[10px] font-bold flex items-center justify-center px-0.5">{{ unread_notifications_count }}</span>
+                {% else %}
+                  <span class="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-ink-200"></span>
+                {% endif %}
+              </summary>
+
+              <div class="absolute right-0 top-full mt-2 w-80 bg-white border border-ink-100 rounded-xl shadow-xl z-50 overflow-hidden">
+                <div class="flex items-center justify-between px-4 py-3 border-b border-ink-100">
+                  <span class="text-sm font-semibold text-ink-900">Notifications</span>
+                  {% if unread_notifications_count %}
+                    <form method="post" action="{% url 'dashboard:notif_read_all' %}">
+                      {% csrf_token %}
+                      <button type="submit" class="text-xs text-brand-700 hover:text-brand-800 font-medium">Mark all read</button>
+                    </form>
+                  {% endif %}
+                </div>
+
+                {% if recent_notifications %}
+                  <ul class="max-h-96 overflow-y-auto divide-y divide-ink-50">
+                    {% for n in recent_notifications %}
+                      <li>
+                        <form method="post" action="{% url 'dashboard:notif_read' n.pk %}">
+                          {% csrf_token %}
+                          <button type="submit" class="w-full text-left flex items-start gap-3 px-4 py-3 hover:bg-ink-50 transition-colors {% if not n.is_read %}bg-brand-50/60{% endif %}">
+                            {% if n.actor %}
+                              <img src="{{ n.actor.avatar_url }}" alt="{{ n.actor.display_name }}" class="w-8 h-8 rounded-full object-cover bg-ink-100 shrink-0 mt-0.5">
+                            {% else %}
+                              <span class="w-8 h-8 rounded-full bg-ink-100 flex items-center justify-center shrink-0 mt-0.5">
+                                <svg class="w-4 h-4 text-ink-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                              </span>
+                            {% endif %}
+                            <div class="flex-1 min-w-0">
+                              <p class="text-xs leading-snug {% if not n.is_read %}font-semibold text-ink-900{% else %}text-ink-600{% endif %}">{{ n.message }}</p>
+                              <p class="text-[11px] text-ink-400 mt-0.5">{{ n.created_at|timesince }} ago</p>
+                            </div>
+                            {% if not n.is_read %}
+                              <span class="w-2 h-2 rounded-full bg-brand-500 shrink-0 mt-1.5"></span>
+                            {% endif %}
+                          </button>
+                        </form>
+                      </li>
+                    {% endfor %}
+                  </ul>
+                {% else %}
+                  <div class="px-4 py-8 text-center text-sm text-ink-500">No notifications yet.</div>
+                {% endif %}
+              </div>
+            </details>
+            <div class="flex items-center gap-2 pl-2 ml-1 border-l border-ink-100">
+              <img src="{{ user.avatar_url }}" alt="{{ user.display_name }}"
+                   class="w-8 h-8 rounded-full object-cover bg-ink-100 ring-1 ring-ink-100">
+              <div class="hidden sm:block text-right leading-tight">
+                <div class="text-sm font-medium text-ink-900 truncate max-w-[10rem]">{{ user.display_name }}</div>
+                <div class="text-[11px] text-ink-600">{{ user.get_role_display }}</div>
+              </div>
+              <form action="{% url 'accounts:logout' %}" method="post" class="ml-1">{% csrf_token %}
+                <button class="text-xs px-2 py-1 rounded-md text-ink-600 hover:bg-ink-100" title="Sign out">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+                </button>
+              </form>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      {% block flash_messages %}{% include 'components/messages.html' %}{% endblock %}
+      <main class="flex-1 px-6 lg:px-10 py-8">
+        {% block content %}{% endblock %}
+      </main>
+    </div>
+  </div>
+  <script>
+    (() => {
+      const toggle = document.getElementById('sidebar-toggle');
+      const sidebar = document.getElementById('dashboard-sidebar');
+      const backdrop = document.getElementById('sidebar-backdrop');
+      if (!toggle || !sidebar || !backdrop) return;
+
+      const close = () => {
+        sidebar.classList.add('-translate-x-full');
+        backdrop.classList.add('hidden');
+        toggle.setAttribute('aria-expanded', 'false');
+      };
+      const open = () => {
+        sidebar.classList.remove('-translate-x-full');
+        backdrop.classList.remove('hidden');
+        toggle.setAttribute('aria-expanded', 'true');
+      };
+      toggle.addEventListener('click', () => toggle.getAttribute('aria-expanded') === 'true' ? close() : open());
+      backdrop.addEventListener('click', close);
+      sidebar.querySelectorAll('a').forEach(link => link.addEventListener('click', close));
+      document.addEventListener('keydown', event => { if (event.key === 'Escape') close(); });
+    })();
+    (() => {
+      const notifications = document.getElementById('notif-details');
+      if (!notifications) return;
+      document.addEventListener('click', event => {
+        if (notifications.open && !notifications.contains(event.target)) notifications.open = false;
+      });
+      document.addEventListener('keydown', event => { if (event.key === 'Escape') notifications.open = false; });
+    })();
+  </script>
+</body>
+</html>

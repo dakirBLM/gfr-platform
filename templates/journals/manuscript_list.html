@@ -1,0 +1,40 @@
+{% extends 'dashboard_base.html' %}
+
+{% block title %}My manuscripts · GFR{% endblock %}
+{% block topbar_eyebrow %}Publishing{% endblock %}
+{% block topbar_title %}My manuscripts{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl space-y-4">
+
+  <div class="flex items-center justify-between">
+    <p class="text-sm text-ink-600">{{ manuscripts|length }} submission{{ manuscripts|length|pluralize }}</p>
+    <a href="{% url 'dashboard:journal_list' %}" class="text-sm font-semibold text-brand-700 hover:text-brand-800">Browse journals →</a>
+  </div>
+
+  {% if manuscripts %}
+    <div class="space-y-3">
+      {% for ms in manuscripts %}
+        <a href="{% url 'dashboard:manuscript_detail' ms.pk %}"
+           class="group flex items-start gap-4 bg-white border border-ink-100 rounded-xl p-5 hover:border-brand-200 hover:shadow-sm transition-all">
+          <div class="flex-1 min-w-0">
+            <div class="flex items-start gap-3 justify-between">
+              <h3 class="font-semibold text-ink-900 group-hover:text-brand-700 leading-snug">{{ ms.title }}</h3>
+              {% include 'journals/_status_badge.html' with status=ms.status label=ms.get_status_display %}
+            </div>
+            <p class="text-xs text-ink-600 mt-1">{{ ms.journal.name }} · Submitted {{ ms.created_at|date:"N j, Y" }}</p>
+            <p class="mt-2 text-sm text-ink-700 line-clamp-2">{{ ms.abstract }}</p>
+          </div>
+          <svg class="w-4 h-4 text-ink-400 shrink-0 mt-1 group-hover:text-brand-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+        </a>
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="bg-white border border-ink-100 rounded-xl p-16 text-center">
+      <p class="text-sm font-medium text-ink-900">No submissions yet.</p>
+      <p class="mt-1 text-sm text-ink-600">Browse our journals and submit your first manuscript.</p>
+      <a href="{% url 'dashboard:journal_list' %}" class="mt-4 inline-block px-4 py-2 rounded-md bg-brand-700 text-white text-sm font-semibold hover:bg-brand-800">Browse journals</a>
+    </div>
+  {% endif %}
+</div>
+{% endblock %}

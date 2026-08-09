@@ -1,0 +1,38 @@
+{% extends 'dashboard_base.html' %}
+
+{% block title %}Submit manuscript · {{ journal.name }}{% endblock %}
+{% block topbar_eyebrow %}{{ journal.name }}{% endblock %}
+{% block topbar_title %}Submit manuscript{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl space-y-6">
+  <a href="{% url 'dashboard:journal_detail' journal.slug %}" class="inline-flex items-center gap-1 text-sm text-ink-600 hover:text-brand-700">
+    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10 19l-7-7 7-7"/></svg>
+    Back to {{ journal.name }}
+  </a>
+
+  <section class="bg-white border border-ink-100 rounded-xl p-6 sm:p-8">
+    <h2 class="font-serif text-xl font-semibold">New submission</h2>
+    <p class="mt-1 text-sm text-ink-600">All fields except the file are required. Your submission will be reviewed under double-blind conditions.</p>
+
+    <form method="post" enctype="multipart/form-data" class="mt-6 space-y-5">
+      {% csrf_token %}
+      {{ form.journal }}
+      {% for field in form.visible_fields %}
+        {% if field.name != 'journal' %}
+          <label class="block">
+            <span class="text-sm font-medium text-ink-700">{{ field.label }}{% if field.field.required %} <span class="text-rose-600">*</span>{% endif %}</span>
+            {{ field }}
+            {% if field.help_text %}<p class="mt-1 text-xs text-ink-600">{{ field.help_text }}</p>{% endif %}
+            {% if field.errors %}<p class="mt-1 text-xs text-rose-700">{{ field.errors|join:" " }}</p>{% endif %}
+          </label>
+        {% endif %}
+      {% endfor %}
+      <div class="pt-2 flex gap-3">
+        <button type="submit" class="px-5 py-2.5 rounded-md bg-brand-700 text-white text-sm font-semibold hover:bg-brand-800">Submit manuscript</button>
+        <a href="{% url 'dashboard:journal_detail' journal.slug %}" class="px-5 py-2.5 rounded-md border border-ink-200 text-ink-700 text-sm font-semibold hover:bg-ink-50">Cancel</a>
+      </div>
+    </form>
+  </section>
+</div>
+{% endblock %}

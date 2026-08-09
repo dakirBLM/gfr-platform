@@ -1,0 +1,39 @@
+{% extends 'dashboard_base.html' %}
+
+{% block title %}Editor queue · GFR{% endblock %}
+{% block topbar_eyebrow %}Editorial{% endblock %}
+{% block topbar_title %}Editor queue{% endblock %}
+
+{% block content %}
+<div class="max-w-5xl space-y-4">
+  <p class="text-sm text-ink-600">{{ manuscripts|length }} submission{{ manuscripts|length|pluralize }} awaiting action</p>
+
+  {% if manuscripts %}
+    {% for ms in manuscripts %}
+      <div class="bg-white border border-ink-100 rounded-xl p-5 flex items-start justify-between gap-4">
+        <div class="min-w-0 flex-1">
+          <div class="flex items-center gap-3 flex-wrap">
+            {% include 'journals/_status_badge.html' with status=ms.status label=ms.get_status_display %}
+            <span class="text-xs text-ink-600">{{ ms.journal.name }}</span>
+            <span class="text-xs text-ink-600">by {{ ms.submitter.display_name }}</span>
+            <span class="text-xs text-ink-500">{{ ms.created_at|date:"N j, Y" }}</span>
+          </div>
+          <h3 class="mt-2 font-semibold text-ink-900 leading-snug">{{ ms.title }}</h3>
+          <p class="text-xs text-ink-600 mt-1">
+            {{ ms.reviews.count }} reviewer{{ ms.reviews.count|pluralize }} assigned
+            · {{ ms.reviews.filter.completed.count }} completed
+          </p>
+        </div>
+        <a href="{% url 'dashboard:editor_manuscript' ms.pk %}"
+           class="px-3 py-1.5 rounded-md bg-ink-900 text-white text-xs font-semibold hover:bg-ink-700 whitespace-nowrap">
+          Manage →
+        </a>
+      </div>
+    {% endfor %}
+  {% else %}
+    <div class="bg-white border border-ink-100 rounded-xl p-16 text-center">
+      <p class="text-sm font-medium text-ink-900">No manuscripts in your queue.</p>
+    </div>
+  {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,165 @@
+{% extends 'dashboard_base.html' %}
+
+{% block title %}{{ profile_user.display_name }} · GFR{% endblock %}
+{% block topbar_eyebrow %}Researchers{% endblock %}
+{% block topbar_title %}{{ profile_user.display_name }}{% endblock %}
+
+{% block content %}
+<div class="max-w-5xl space-y-6">
+
+  {# Hero card — photo, identity, follow / edit actions, social links #}
+  <div class="bg-white border border-ink-100 rounded-2xl overflow-hidden">
+    <div class="h-28 bg-gradient-to-br from-brand-800 to-brand-700"></div>
+    <div class="px-6 sm:px-10 pb-8 -mt-12">
+      <div class="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
+        <div class="flex items-end gap-5">
+          <img src="{{ profile_user.avatar_url }}" alt="{{ profile_user.display_name }}"
+               class="w-24 h-24 sm:w-28 sm:h-28 rounded-full object-cover bg-white ring-4 ring-white shrink-0">
+          <div class="pb-2">
+            <span class="inline-flex items-center px-2 py-0.5 rounded-full bg-brand-50 text-brand-700 text-xs font-medium">{{ profile_user.get_role_display }}</span>
+            <h1 class="mt-2 font-serif text-3xl font-semibold leading-tight">{{ profile_user.display_name }}</h1>
+            {% if profile_user.headline %}<p class="text-sm text-ink-700 mt-1">{{ profile_user.headline }}</p>{% endif %}
+            <p class="text-xs text-ink-600 mt-1">
+              {% if profile_user.affiliation %}{{ profile_user.affiliation }}{% endif %}{% if profile_user.country %}{% if profile_user.affiliation %} · {% endif %}{{ profile_user.country }}{% endif %}
+            </p>
+            <p class="text-xs text-ink-500 mt-1.5">
+              <span class="font-semibold text-ink-700">{{ follower_count }}</span> follower{{ follower_count|pluralize }} &nbsp;·&nbsp;
+              <span class="font-semibold text-ink-700">{{ following_count }}</span> following
+            </p>
+          </div>
+        </div>
+        <div class="flex gap-2">
+          {% if is_self %}
+            <a href="{% url 'dashboard:profile' %}" class="px-4 py-2 rounded-md bg-ink-900 text-white text-sm font-semibold hover:bg-ink-700">Edit profile</a>
+          {% else %}
+            <form method="post" action="{% url 'dashboard:social_follow' profile_user.username %}">
+              {% csrf_token %}
+              <button class="px-4 py-2 rounded-md text-sm font-semibold
+                {% if is_following %}border border-ink-200 text-ink-700 hover:bg-rose-50 hover:text-rose-700 hover:border-rose-200{% else %}bg-brand-700 text-white hover:bg-brand-800{% endif %}">
+                {% if is_following %}Unfollow{% else %}Follow{% endif %}
+              </button>
+            </form>
+            <a href="{% url 'dashboard:message_new' %}?q={{ profile_user.username }}"
+               class="px-4 py-2 rounded-md border border-ink-200 text-ink-700 text-sm font-semibold hover:bg-ink-50">Message</a>
+          {% endif %}
+        </div>
+      </div>
+
+      {% if profile_user.orcid or profile_user.website or profile_user.linkedin or profile_user.google_scholar %}
+        <div class="mt-6 flex flex-wrap gap-2 text-xs">
+          {% if profile_user.orcid %}
+            <a href="https://orcid.org/{{ profile_user.orcid }}" target="_blank" rel="noopener"
+               class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-ink-50 border border-ink-100 text-ink-700 hover:bg-ink-100">
+              <span class="font-semibold">ORCID</span><span class="text-ink-600">{{ profile_user.orcid }}</span>
+            </a>
+          {% endif %}
+          {% if profile_user.website %}
+            <a href="{{ profile_user.website }}" target="_blank" rel="noopener"
+               class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-ink-50 border border-ink-100 text-ink-700 hover:bg-ink-100">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0zM3 12h18M12 3a13 13 0 010 18M12 3a13 13 0 000 18"/></svg>
+              Website
+            </a>
+          {% endif %}
+          {% if profile_user.linkedin %}
+            <a href="{{ profile_user.linkedin }}" target="_blank" rel="noopener"
+               class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-ink-50 border border-ink-100 text-ink-700 hover:bg-ink-100">LinkedIn</a>
+          {% endif %}
+          {% if profile_user.google_scholar %}
+            <a href="{{ profile_user.google_scholar }}" target="_blank" rel="noopener"
+               class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-ink-50 border border-ink-100 text-ink-700 hover:bg-ink-100">Google Scholar</a>
+          {% endif %}
+        </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="grid lg:grid-cols-3 gap-6">
+    <div class="lg:col-span-2 space-y-6">
+
+      <section class="bg-white border border-ink-100 rounded-xl p-6 sm:p-8">
+        <h2 class="font-serif text-lg font-semibold">About</h2>
+        {% if profile_user.biography %}
+          <p class="mt-3 text-ink-700 whitespace-pre-line leading-relaxed">{{ profile_user.biography }}</p>
+        {% else %}
+          <p class="mt-3 text-sm text-ink-600 italic">{{ profile_user.display_name }} hasn't added a biography yet.</p>
+        {% endif %}
+      </section>
+
+      {% if user_posts %}
+      <section class="space-y-4">
+        <h2 class="font-serif text-lg font-semibold px-1">Posts</h2>
+        {% for post in user_posts %}
+          {% include 'social/_post.html' %}
+        {% endfor %}
+      </section>
+      {% endif %}
+
+      <section class="bg-white border border-ink-100 rounded-xl p-6 sm:p-8">
+        <div class="flex items-baseline justify-between">
+          <h2 class="font-serif text-lg font-semibold">Publications</h2>
+          <span class="text-xs text-ink-600">{{ publications|length }} entr{{ publications|length|pluralize:"y,ies" }}</span>
+        </div>
+        {% if publications %}
+          <ul class="mt-4 divide-y divide-ink-100">
+            {% for p in publications %}
+              <li class="py-4">
+                <div class="font-medium text-ink-900">
+                  {% if p.url %}<a href="{{ p.url }}" target="_blank" rel="noopener" class="hover:text-brand-700">{{ p.title }}</a>{% else %}{{ p.title }}{% endif %}
+                </div>
+                <div class="text-xs text-ink-600 mt-0.5">
+                  {% if p.authors %}{{ p.authors }}{% endif %}
+                  {% if p.venue %}{% if p.authors %} · {% endif %}<span class="italic">{{ p.venue }}</span>{% endif %}
+                  {% if p.year %} · {{ p.year }}{% endif %}
+                  {% if p.doi %} · <a href="https://doi.org/{{ p.doi }}" target="_blank" rel="noopener" class="hover:text-brand-700">DOI</a>{% endif %}
+                </div>
+                {% if p.abstract %}<p class="mt-2 text-sm text-ink-700">{{ p.abstract }}</p>{% endif %}
+              </li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <p class="mt-3 text-sm text-ink-600 italic">No publications yet.</p>
+        {% endif %}
+      </section>
+
+      <section class="bg-white border border-ink-100 rounded-xl p-6 sm:p-8">
+        <h2 class="font-serif text-lg font-semibold">Education</h2>
+        {% if education_entries %}
+          <ul class="mt-4 space-y-4">
+            {% for edu in education_entries %}
+              <li>
+                <div class="font-medium text-ink-900">{{ edu.degree }}</div>
+                <div class="text-sm text-ink-600">{{ edu.institution }}{% if edu.years_label %} · {{ edu.years_label }}{% endif %}</div>
+                {% if edu.description %}<p class="mt-1 text-sm text-ink-700">{{ edu.description }}</p>{% endif %}
+              </li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <p class="mt-3 text-sm text-ink-600 italic">No education entries yet.</p>
+        {% endif %}
+      </section>
+
+    </div>
+
+    <aside class="space-y-6">
+      <section class="bg-white border border-ink-100 rounded-xl p-6">
+        <h2 class="font-serif text-base font-semibold">Research interests</h2>
+        {% if interests %}
+          <div class="mt-3 flex flex-wrap gap-2">
+            {% for i in interests %}
+              <span class="inline-flex items-center px-2.5 py-1 rounded-full bg-brand-50 text-brand-700 text-xs font-medium">{{ i.name }}</span>
+            {% endfor %}
+          </div>
+        {% else %}
+          <p class="mt-3 text-sm text-ink-600 italic">No interests listed yet.</p>
+        {% endif %}
+      </section>
+
+      <section class="bg-white border border-ink-100 rounded-xl p-6">
+        <h2 class="font-serif text-base font-semibold">Member since</h2>
+        <p class="mt-2 text-sm text-ink-700">{{ profile_user.date_joined|date:"F Y" }}</p>
+      </section>
+    </aside>
+  </div>
+
+</div>
+{% endblock %}

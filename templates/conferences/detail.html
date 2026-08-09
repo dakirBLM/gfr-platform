@@ -1,0 +1,119 @@
+{% extends 'dashboard_base.html' %}
+
+{% block title %}{{ conf.title }} · GFR{% endblock %}
+{% block topbar_eyebrow %}Conferences{% endblock %}
+{% block topbar_title %}{{ conf.title|truncatechars:50 }}{% endblock %}
+
+{% block content %}
+<div class="max-w-5xl space-y-6">
+
+  <a href="{% url 'dashboard:conference_list' %}" class="inline-flex items-center gap-1 text-sm text-ink-600 hover:text-brand-700">
+    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10 19l-7-7 7-7"/></svg>
+    All events
+  </a>
+
+  <section class="bg-white border border-ink-100 rounded-2xl overflow-hidden">
+    <div class="h-24 bg-gradient-to-br from-brand-800 to-brand-600"></div>
+    <div class="px-6 sm:px-10 pb-8 pt-4">
+      <div class="flex items-start justify-between gap-4">
+        <div class="min-w-0 flex-1">
+          <div class="flex flex-wrap items-center gap-2 mb-2">
+            <span class="text-xs font-medium px-2 py-0.5 rounded-full
+              {% if conf.status == 'upcoming' %}bg-emerald-50 text-emerald-700
+              {% elif conf.status == 'ongoing' %}bg-blue-50 text-blue-700
+              {% else %}bg-ink-100 text-ink-600{% endif %}">{{ conf.get_status_display }}</span>
+            <span class="text-xs text-ink-600">{{ conf.get_event_type_display }}</span>
+          </div>
+          <h1 class="font-serif text-3xl font-semibold">{{ conf.title }}</h1>
+          <p class="text-ink-600 mt-1">
+            {{ conf.start_date|date:"N j" }}–{{ conf.end_date|date:"N j, Y" }}
+            {% if conf.is_virtual %} · <span class="font-medium text-violet-700">Virtual</span>{% elif conf.location %} · {{ conf.location }}{% endif %}
+          </p>
+        </div>
+        <div class="flex flex-col gap-2 shrink-0">
+          {% if conf.status != 'past' %}
+            {% if is_registered %}
+              <span class="px-4 py-2 rounded-md bg-emerald-50 text-emerald-700 text-sm font-semibold">✓ Registered</span>
+              <form method="post" action="{% url 'dashboard:conference_unregister' conf.slug %}">
+                {% csrf_token %}
+                <button class="w-full text-xs text-ink-500 hover:text-rose-700">Cancel registration</button>
+              </form>
+            {% else %}
+              <form method="post" action="{% url 'dashboard:conference_register' conf.slug %}">
+                {% csrf_token %}
+                <button class="px-4 py-2 rounded-md bg-brand-700 text-white text-sm font-semibold hover:bg-brand-800">Register</button>
+              </form>
+            {% endif %}
+          {% endif %}
+        </div>
+      </div>
+
+      <dl class="mt-6 grid grid-cols-3 gap-4 pt-4 border-t border-ink-100 text-center text-sm">
+        <div><dt class="text-xs text-ink-600 uppercase tracking-wider">Registrations</dt><dd class="mt-1 font-serif text-2xl font-semibold">{{ registrations_count }}</dd></div>
+        <div><dt class="text-xs text-ink-600 uppercase tracking-wider">Abstracts</dt><dd class="mt-1 font-serif text-2xl font-semibold">{{ abstracts_count }}</dd></div>
+        <div>
+          <dt class="text-xs text-ink-600 uppercase tracking-wider">Abstract deadline</dt>
+          <dd class="mt-1 text-sm font-medium">{{ conf.abstract_deadline|date:"N j, Y"|default:"—" }}</dd>
+        </div>
+      </dl>
+    </div>
+  </section>
+
+  <div class="grid lg:grid-cols-3 gap-6">
+    <div class="lg:col-span-2 space-y-6">
+
+      <section class="bg-white border border-ink-100 rounded-xl p-6 sm:p-8">
+        <h2 class="font-serif text-lg font-semibold">About</h2>
+        <p class="mt-3 text-ink-700 leading-relaxed">{{ conf.description }}</p>
+      </section>
+
+      {% if conf.abstract_deadline and conf.status != 'past' %}
+        <section class="bg-white border border-ink-100 rounded-xl p-6 sm:p-8">
+          <h2 class="font-serif text-lg font-semibold">Abstract submission</h2>
+          {% if my_abstract %}
+            <div class="mt-3 p-4 bg-emerald-50 border border-emerald-100 rounded-lg">
+              <p class="text-sm font-semibold text-emerald-800">Your abstract submitted</p>
+              <p class="text-sm font-medium text-emerald-900 mt-1">{{ my_abstract.title }}</p>
+              <span class="mt-1 inline-block text-xs font-medium px-2 py-0.5 rounded-full
+                {% if my_abstract.status == 'accepted' %}bg-emerald-100 text-emerald-700
+                {% elif my_abstract.status == 'rejected' %}bg-rose-100 text-rose-700
+                {% else %}bg-blue-100 text-blue-700{% endif %}">{{ my_abstract.get_status_display }}</span>
+            </div>
+          {% else %}
+            <p class="mt-2 text-sm text-ink-600">Deadline: <strong>{{ conf.abstract_deadline|date:"N j, Y" }}</strong></p>
+            <a href="{% url 'dashboard:conference_submit_abstract' conf.slug %}"
+               class="mt-4 inline-block px-4 py-2 rounded-md bg-brand-700 text-white text-sm font-semibold hover:bg-brand-800">
+              Submit abstract
+            </a>
+          {% endif %}
+        </section>
+      {% endif %}
+
+    </div>
+
+    <aside class="space-y-5">
+      {% if conf.topic_list %}
+        <section class="bg-white border border-ink-100 rounded-xl p-5">
+          <h3 class="text-sm font-semibold text-ink-900 mb-3">Topics</h3>
+          <ul class="space-y-1.5">
+            {% for t in conf.topic_list %}
+              <li class="flex items-start gap-2 text-sm text-ink-700">
+                <span class="mt-1.5 w-1.5 h-1.5 rounded-full bg-brand-500 shrink-0"></span>{{ t }}
+              </li>
+            {% endfor %}
+          </ul>
+        </section>
+      {% endif %}
+
+      <section class="bg-white border border-ink-100 rounded-xl p-5 text-sm space-y-2">
+        <div class="flex justify-between"><span class="text-ink-600">Dates</span><span>{{ conf.start_date|date:"N j" }}–{{ conf.end_date|date:"N j, Y" }}</span></div>
+        {% if not conf.is_virtual and conf.location %}<div class="flex justify-between"><span class="text-ink-600">Location</span><span>{{ conf.location }}</span></div>{% endif %}
+        {% if conf.registration_deadline %}<div class="flex justify-between"><span class="text-ink-600">Reg. deadline</span><span>{{ conf.registration_deadline|date:"N j, Y" }}</span></div>{% endif %}
+        {% if conf.organizer %}<div class="flex justify-between"><span class="text-ink-600">Organizer</span><a href="{% url 'dashboard:researcher_profile' conf.organizer.username %}" class="hover:text-brand-700 font-medium">{{ conf.organizer.display_name }}</a></div>{% endif %}
+        {% if conf.website %}<div><a href="{{ conf.website }}" target="_blank" rel="noopener" class="text-brand-700 hover:text-brand-800 font-medium">Official website →</a></div>{% endif %}
+      </section>
+    </aside>
+  </div>
+
+</div>
+{% endblock %}

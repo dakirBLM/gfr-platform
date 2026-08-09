@@ -1,0 +1,479 @@
+{% extends 'dashboard_base.html' %}
+
+{% block title %}{{ project.title }} · GFR{% endblock %}
+{% block topbar_eyebrow %}Projects{% endblock %}
+{% block topbar_title %}{{ project.title }}{% endblock %}
+
+{% block extra_head %}
+<style>
+  /* Slow left-border glow for tasks assigned to the current user */
+  @keyframes taskGlow {
+    0%, 100% { box-shadow: inset 3px 0 0 0 rgba(44, 84, 212, 0.45); background-color: rgba(238, 244, 255, 0.55); }
+    50%       { box-shadow: inset 3px 0 0 0 rgba(44, 84, 212, 0.9);  background-color: rgba(219, 231, 254, 0.7); }
+  }
+  .task-mine {
+    animation: taskGlow 2.8s ease-in-out infinite;
+    border-radius: 0.5rem;
+  }
+
+  /* Amber pulse for tasks awaiting manager review */
+  @keyframes taskPendingPulse {
+    0%, 100% { box-shadow: inset 3px 0 0 0 rgba(180, 83, 9, 0.4); }
+    50%       { box-shadow: inset 3px 0 0 0 rgba(180, 83, 9, 0.85); }
+  }
+  .task-pending-review {
+    animation: taskPendingPulse 2.2s ease-in-out infinite;
+    background-color: rgba(255, 251, 235, 0.7);
+    border-radius: 0.5rem;
+  }
+
+  /* Smooth entrance for every task row */
+  @keyframes taskFadeIn {
+    from { opacity: 0; transform: translateY(4px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .task-row {
+    animation: taskFadeIn 0.3s ease both;
+  }
+  .task-row:nth-child(1)  { animation-delay: 0.04s; }
+  .task-row:nth-child(2)  { animation-delay: 0.08s; }
+  .task-row:nth-child(3)  { animation-delay: 0.12s; }
+  .task-row:nth-child(4)  { animation-delay: 0.16s; }
+  .task-row:nth-child(5)  { animation-delay: 0.20s; }
+  .task-row:nth-child(6)  { animation-delay: 0.24s; }
+  .task-row:nth-child(7)  { animation-delay: 0.28s; }
+  .task-row:nth-child(8)  { animation-delay: 0.32s; }
+  .task-row:nth-child(9)  { animation-delay: 0.36s; }
+  .task-row:nth-child(10) { animation-delay: 0.40s; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-5xl space-y-6">
+
+  <a href="{% url 'dashboard:project_list' %}" class="inline-flex items-center gap-1 text-sm text-ink-600 hover:text-brand-700">
+    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10 19l-7-7 7-7"/></svg>
+    All projects
+  </a>
+
+  {# Header #}
+  <section class="bg-white border border-ink-100 rounded-xl p-6 sm:p-8">
+    <div class="flex flex-col sm:flex-row items-start justify-between gap-5">
+      <div class="min-w-0 flex-1">
+        <div class="flex flex-wrap items-center gap-2 mb-2">
+          <span class="px-2.5 py-0.5 text-xs rounded-full font-medium
+            {% if project.status == 'open' %}bg-emerald-50 text-emerald-700
+            {% elif project.status == 'active' %}bg-blue-50 text-blue-700
+            {% else %}bg-gray-100 text-gray-600{% endif %}">{{ project.get_status_display }}</span>
+          <span class="px-2.5 py-0.5 text-xs rounded-full font-medium
+            {% if project.funding_status == 'funded' %}bg-emerald-50 text-emerald-700
+            {% elif project.funding_status == 'partial' %}bg-amber-50 text-amber-700
+            {% else %}bg-ink-100 text-ink-600{% endif %}">{{ project.get_funding_status_display }}</span>
+          {% if is_owner %}
+            <span class="px-2.5 py-0.5 text-xs rounded-full font-semibold bg-brand-100 text-brand-800">You are the guarantor</span>
+          {% elif membership.role == 'manager' %}
+            <span class="px-2.5 py-0.5 text-xs rounded-full font-semibold bg-violet-100 text-violet-800">You are a project manager</span>
+          {% elif is_member %}
+            <span class="px-2.5 py-0.5 text-xs rounded-full font-semibold bg-emerald-100 text-emerald-800">You are a team member</span>
+          {% endif %}
+        </div>
+        <h1 class="font-serif text-2xl font-semibold">{{ project.title }}</h1>
+        <p class="mt-1 text-sm text-ink-600">Led by <a href="{% url 'dashboard:researcher_profile' project.created_by.username %}" class="hover:text-brand-700 font-medium">{{ project.created_by.display_name }}</a></p>
+        <p class="mt-3 text-ink-700 leading-relaxed">{{ project.description }}</p>
+        {% if project.objectives %}
+          <div class="mt-4 bg-ink-50 rounded-lg p-4">
+            <p class="text-xs font-semibold text-ink-700 uppercase tracking-wider mb-1">Objectives</p>
+            <p class="text-sm text-ink-700">{{ project.objectives }}</p>
+          </div>
+        {% endif %}
+      </div>
+      <div class="flex flex-col gap-2 shrink-0 w-full sm:w-auto">
+        {% if is_manager %}
+          <button type="button" data-open-project-control="guarantor-workspace" class="px-4 py-2 rounded-md border border-brand-200 text-brand-700 text-sm font-semibold hover:bg-brand-50">Edit project</button>
+          <button type="button" data-open-project-control="task-composer" class="px-4 py-2 rounded-md bg-brand-700 text-white text-sm font-semibold hover:bg-brand-800">Assign task</button>
+        {% endif %}
+        {% if is_member and not is_manager %}
+          <div class="rounded-md bg-emerald-50 border border-emerald-100 px-3 py-2 text-xs text-emerald-800">
+            You are a team member. Your assigned tasks appear below; submit work from the task page when ready.
+          </div>
+        {% endif %}
+        {% if not is_member and project.status == 'open' and application_form %}
+          <form method="post" action="{% url 'dashboard:project_join' project.slug %}" class="w-72 bg-ink-50 border border-ink-100 rounded-lg p-3 space-y-2">
+            {% csrf_token %}
+            <p class="text-xs font-semibold text-ink-700">Apply to join this project</p>
+            {% for field in application_form %}
+              <label class="block text-xs text-ink-600">{{ field.label }}{{ field }}</label>
+            {% endfor %}
+            <button class="px-3 py-2 rounded-md bg-brand-700 text-white text-sm font-semibold hover:bg-brand-800">Send application</button>
+          </form>
+        {% elif application and application.status == 'pending' %}
+          <p class="text-sm text-amber-700 font-medium">Application awaiting guarantor review</p>
+        {% elif is_member and membership.role != 'owner' %}
+          <form method="post" action="{% url 'dashboard:project_leave' project.slug %}">
+            {% csrf_token %}
+            <button class="px-4 py-2 rounded-md border border-ink-200 text-ink-700 text-sm font-semibold hover:bg-ink-50">Leave</button>
+          </form>
+        {% endif %}
+        {% if project_chat %}
+          <a href="{% url 'dashboard:message_thread' project_chat.pk %}" class="px-4 py-2 rounded-md border border-brand-200 text-brand-700 text-sm font-semibold hover:bg-brand-50 text-center">Project discussion</a>
+        {% endif %}
+      </div>
+    </div>
+
+    <dl class="mt-6 grid grid-cols-2 sm:grid-cols-4 gap-4 pt-4 border-t border-ink-100 text-center text-sm">
+      <div><dt class="text-xs text-ink-600 uppercase tracking-wider">Members</dt><dd class="mt-1 font-serif text-2xl font-semibold">{{ team|length }}</dd></div>
+      <div><dt class="text-xs text-ink-600 uppercase tracking-wider">Open tasks</dt><dd class="mt-1 font-serif text-2xl font-semibold">{{ todo_count }}</dd></div>
+      <div><dt class="text-xs text-ink-600 uppercase tracking-wider">Done</dt><dd class="mt-1 font-serif text-2xl font-semibold">{{ done_count }}</dd></div>
+      <div>
+        <dt class="text-xs text-ink-600 uppercase tracking-wider">Pending review</dt>
+        <dd class="mt-1 font-serif text-2xl font-semibold {% if pending_count > 0 %}text-amber-600{% endif %}">{{ pending_count }}</dd>
+      </div>
+    </dl>
+  </section>
+
+  {% if is_manager %}
+    <section id="guarantor-workspace" class="bg-white border border-ink-100 rounded-xl p-6 space-y-4">
+      <div class="flex items-center justify-between"><h2 class="font-semibold">Guarantor workspace</h2><span class="text-xs text-ink-600">Project structure and applicants</span></div>
+      <details data-project-control>
+        <summary class="cursor-pointer text-sm font-semibold text-brand-700">Edit main project content</summary>
+        <form method="post" action="{% url 'dashboard:project_edit' project.slug %}" class="mt-4 grid sm:grid-cols-2 gap-4">{% csrf_token %}
+          {% for field in project_form %}<label class="block {% if field.name == 'description' or field.name == 'objectives' %}sm:col-span-2{% endif %}"><span class="text-sm font-medium text-ink-700">{{ field.label }}</span>{{ field }}</label>{% endfor %}
+          <button class="justify-self-start px-4 py-2 rounded-md bg-brand-700 text-white text-sm font-semibold">Save project changes</button>
+        </form>
+      </details>
+      {% if applications %}
+        <div class="border-t border-ink-100 pt-4"><h3 class="text-sm font-semibold">Applicants awaiting review ({{ applications|length }})</h3>
+          <ul class="mt-3 space-y-3">{% for application in applications %}<li class="rounded-lg bg-ink-50 p-3 text-sm"><p class="font-semibold">{{ application.applicant.display_name }}</p><p class="mt-1 text-ink-700"><span class="font-medium">Message:</span> {{ application.message|default:'No message supplied.' }}</p><p class="mt-1 text-ink-700"><span class="font-medium">Suitability:</span> {{ application.answer }}</p><div class="mt-2 flex gap-2"><form method="post" action="{% url 'dashboard:project_review_application' project.slug application.pk 'accept' %}">{% csrf_token %}<button class="text-xs px-2.5 py-1 rounded bg-emerald-600 text-white font-semibold">Accept</button></form><form method="post" action="{% url 'dashboard:project_review_application' project.slug application.pk 'decline' %}">{% csrf_token %}<button class="text-xs px-2.5 py-1 rounded border border-rose-200 text-rose-700 font-semibold">Decline</button></form></div></li>{% endfor %}</ul>
+        </div>
+      {% endif %}
+    </section>
+  {% endif %}
+
+  <div class="grid lg:grid-cols-3 gap-6">
+    <div class="lg:col-span-2 space-y-6">
+
+      {# Pending review queue — managers only #}
+      {% if is_manager and pending_review %}
+        <section class="bg-amber-50 border border-amber-200 rounded-xl p-5">
+          <h2 class="font-semibold text-amber-900 flex items-center gap-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            Submitted tasks awaiting your review ({{ pending_review|length }})
+          </h2>
+          <ul class="mt-3 divide-y divide-amber-100">
+            {% for task in pending_review %}
+              <li class="py-3 flex items-center justify-between gap-4">
+                <div>
+                  <p class="text-sm font-semibold text-amber-900">{{ task.title }}</p>
+                  <p class="text-xs text-amber-700">By {{ task.assigned_to.display_name }} · submitted {{ task.submitted_at|timesince }} ago</p>
+                </div>
+                <a href="{% url 'dashboard:project_task_detail' project.slug task.pk %}"
+                   class="px-3 py-1.5 rounded-md bg-amber-700 text-white text-xs font-semibold hover:bg-amber-800 whitespace-nowrap">
+                  Review →
+                </a>
+              </li>
+            {% endfor %}
+          </ul>
+        </section>
+      {% endif %}
+
+      {# Tasks #}
+      <section class="bg-white border border-ink-100 rounded-xl p-6">
+        <div class="flex items-baseline justify-between mb-4">
+          <h2 class="font-semibold">Tasks</h2>
+          <span class="text-xs text-ink-600">{{ tasks|length }} total</span>
+        </div>
+
+        {% if tasks %}
+          <ul class="space-y-2">
+            {% for task in tasks %}
+              <li class="task-row px-3 py-3 flex items-start gap-3 transition-all
+                {% if task.assigned_to == user and task.status != 'done' and task.review_status != 'submitted' %}task-mine
+                {% elif task.assigned_to == user and task.review_status == 'submitted' %}task-pending-review
+                {% endif %}">
+
+                {# Status indicator — ONLY managers get a clickable checkbox #}
+                {% if is_manager %}
+                  <form method="post" action="{% url 'dashboard:project_toggle_task' project.slug task.pk %}" class="shrink-0 mt-0.5">
+                    {% csrf_token %}
+                    <button type="submit"
+                            title="{% if task.status == 'done' %}Mark as open{% else %}Mark as done{% endif %}"
+                            class="w-5 h-5 rounded border-2 flex items-center justify-center transition-colors
+                              {% if task.status == 'done' %}bg-emerald-500 border-emerald-500 text-white hover:bg-emerald-600
+                              {% else %}border-ink-300 hover:border-brand-500 hover:bg-brand-50{% endif %}">
+                      {% if task.status == 'done' %}
+                        <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                      {% endif %}
+                    </button>
+                  </form>
+                {% else %}
+                  {# Members see a read-only status indicator — no toggle, no form #}
+                  <span class="shrink-0 mt-0.5 w-5 h-5 rounded border-2 flex items-center justify-center
+                    {% if task.status == 'done' %}bg-emerald-500 border-emerald-500 text-white
+                    {% elif task.review_status == 'submitted' %}bg-amber-400 border-amber-400 text-white
+                    {% elif task.review_status == 'rejected' %}bg-rose-400 border-rose-400 text-white
+                    {% elif task.assigned_to == user %}border-brand-400 bg-brand-50
+                    {% else %}border-ink-200 bg-white{% endif %}">
+                    {% if task.status == 'done' %}
+                      <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                    {% elif task.review_status == 'submitted' %}
+                      <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3"/></svg>
+                    {% elif task.review_status == 'rejected' %}
+                      <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                    {% elif task.assigned_to == user %}
+                      <svg class="w-3 h-3 text-brand-500" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+                    {% endif %}
+                  </span>
+                {% endif %}
+
+                <div class="flex-1 min-w-0">
+                  <div class="flex items-start justify-between gap-2">
+                    <div class="min-w-0">
+
+                      {# Task title line #}
+                      <div class="flex flex-wrap items-center gap-1.5">
+                        <span class="text-sm font-medium
+                          {% if task.status == 'done' %}line-through text-ink-400
+                          {% elif task.assigned_to == user %}text-brand-900
+                          {% else %}text-ink-700{% endif %}">
+                          {{ task.title }}
+                        </span>
+
+                        {# "Your task" badge — only for assigned, not done #}
+                        {% if task.assigned_to == user and task.status != 'done' %}
+                          <span class="inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] font-semibold rounded bg-brand-700 text-white uppercase tracking-wide">
+                            <svg class="w-2.5 h-2.5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd"/></svg>
+                            You
+                          </span>
+                        {% endif %}
+                        {% if task.section %}<span class="text-[10px] px-1.5 py-0.5 rounded bg-violet-50 text-violet-700 font-medium">{{ task.section.title }}</span>{% endif %}
+
+                        {# Priority chip #}
+                        <span class="text-[10px] px-1.5 py-0.5 rounded font-medium uppercase tracking-wide
+                          {% if task.priority == 'high' %}bg-rose-50 text-rose-600
+                          {% elif task.priority == 'medium' %}bg-amber-50 text-amber-600
+                          {% else %}bg-ink-100 text-ink-500{% endif %}">
+                          {{ task.priority }}
+                        </span>
+
+                        {# Review status chip #}
+                        {% if task.review_status != 'none' %}
+                          <span class="text-[10px] px-1.5 py-0.5 rounded font-medium uppercase tracking-wide
+                            {% if task.review_status == 'submitted' %}bg-amber-100 text-amber-700
+                            {% elif task.review_status == 'approved' %}bg-emerald-100 text-emerald-700
+                            {% else %}bg-rose-100 text-rose-700{% endif %}">
+                            {{ task.get_review_status_display }}
+                          </span>
+                        {% endif %}
+                      </div>
+
+                      {# Assignee + due date #}
+                      {% if task.assigned_to %}
+                        <p class="text-[11px] mt-0.5
+                          {% if task.assigned_to == user %}text-brand-600{% else %}text-ink-500{% endif %}">
+                          {{ task.assigned_to.display_name }}
+                          {% if task.due_date %} · due {{ task.due_date|date:"N j" }}{% endif %}
+                        </p>
+                      {% endif %}
+                    </div>
+
+                    {# Action link: only assignee and managers can open detail #}
+                    {% if task.assigned_to == user or is_manager %}
+                      <a href="{% url 'dashboard:project_task_detail' project.slug task.pk %}"
+                         class="shrink-0 text-[11px] font-semibold px-2 py-1 rounded
+                           {% if task.assigned_to == user and task.status != 'done' %}text-brand-700 hover:text-brand-900 hover:bg-brand-100
+                           {% else %}text-ink-500 hover:text-ink-700 hover:bg-ink-100{% endif %}
+                           transition-colors">
+                        {% if is_manager %}Edit →{% elif task.assigned_to == user and task.review_status == 'none' and task.status != 'done' %}Submit →{% else %}View →{% endif %}
+                      </a>
+                    {% endif %}
+                  </div>
+                </div>
+
+              </li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <p class="text-sm text-ink-600 italic">No tasks yet.</p>
+        {% endif %}
+
+        {% if is_manager and task_form %}
+          <details id="task-composer" class="mt-5 group" data-project-control>
+            <summary class="cursor-pointer text-sm font-semibold text-brand-700 hover:text-brand-800 inline-flex items-center gap-1">
+              <svg class="w-4 h-4 transition-transform group-open:rotate-45" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
+              Add task
+            </summary>
+            <p class="mt-2 text-xs text-ink-600">Keep the project focused: a maximum of 20 tasks is allowed.</p>
+            <form method="post" enctype="multipart/form-data" action="{% url 'dashboard:project_add_task' project.slug %}" class="mt-4 space-y-4">
+              {% csrf_token %}
+              {% for field in task_form %}
+                <label class="block">
+                  <span class="text-sm font-medium text-ink-700">{{ field.label }}</span>
+                  {{ field }}
+                  {% if field.errors %}<p class="mt-1 text-xs text-rose-700">{{ field.errors|join:" " }}</p>{% endif %}
+                </label>
+              {% endfor %}
+              <button class="px-4 py-2 rounded-md bg-brand-700 text-white text-sm font-semibold hover:bg-brand-800">Add task</button>
+            </form>
+          </details>
+        {% endif %}
+      </section>
+
+      <section class="bg-white border border-ink-100 rounded-xl p-6">
+        <h2 class="font-semibold">Project sections</h2>
+        {% if sections %}<ul class="mt-3 space-y-2">{% for section in sections %}<li class="flex items-start justify-between gap-3 rounded-lg bg-ink-50 p-3"><div><p class="text-sm font-semibold">{{ section.order }}. {{ section.title }}</p>{% if section.description %}<p class="text-xs text-ink-600 mt-1">{{ section.description }}</p>{% endif %}<p class="text-xs text-ink-500 mt-1">{{ section.tasks.count }} task{{ section.tasks.count|pluralize }}</p></div>{% if is_manager %}<form method="post" action="{% url 'dashboard:project_delete_section' project.slug section.pk %}">{% csrf_token %}<button class="text-xs text-rose-700">Remove</button></form>{% endif %}</li>{% endfor %}</ul>{% else %}<p class="mt-2 text-sm text-ink-600 italic">No sections defined yet.</p>{% endif %}
+        {% if is_manager %}<details class="mt-4"><summary class="cursor-pointer text-sm font-semibold text-brand-700">Add section</summary><form method="post" action="{% url 'dashboard:project_add_section' project.slug %}" class="mt-3 space-y-3">{% csrf_token %}{% for field in section_form %}<label class="block"><span class="text-xs font-medium text-ink-700">{{ field.label }}</span>{{ field }}</label>{% endfor %}<button class="px-3 py-2 rounded-md bg-brand-700 text-white text-xs font-semibold">Add section</button></form></details>{% endif %}
+      </section>
+
+      {# Milestones #}
+      <section class="bg-white border border-ink-100 rounded-xl p-6">
+        <h2 class="font-semibold mb-4">Milestones</h2>
+        {% if milestones %}
+          <ol class="relative border-l-2 border-ink-100 ml-3 space-y-5">
+            {% for ms in milestones %}
+              <li class="ml-5">
+                <div class="absolute -left-2.5 w-5 h-5 rounded-full border-2
+                  {% if ms.completed %}bg-emerald-500 border-emerald-500{% else %}bg-white border-ink-300{% endif %}
+                  flex items-center justify-center">
+                  {% if ms.completed %}<svg class="w-3 h-3 text-white" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>{% endif %}
+                </div>
+                <div class="flex items-start justify-between gap-3">
+                  <div>
+                    <p class="text-sm font-semibold {% if ms.completed %}text-ink-500 line-through{% else %}text-ink-900{% endif %}">{{ ms.title }}</p>
+                    {% if ms.due_date %}<p class="text-xs text-ink-600">Due {{ ms.due_date|date:"N j, Y" }}</p>{% endif %}
+                  </div>
+                  {% if is_manager %}
+                    <form method="post" action="{% url 'dashboard:project_toggle_milestone' project.slug ms.pk %}">
+                      {% csrf_token %}
+                      <button type="submit" class="text-xs text-brand-700 hover:text-brand-800 font-medium">
+                        {% if ms.completed %}Reopen{% else %}Mark done{% endif %}
+                      </button>
+                    </form>
+                  {% endif %}
+                </div>
+              </li>
+            {% endfor %}
+          </ol>
+        {% else %}
+          <p class="text-sm text-ink-600 italic">No milestones defined yet.</p>
+        {% endif %}
+
+        {% if is_manager and milestone_form %}
+          <details class="mt-5 group">
+            <summary class="cursor-pointer text-sm font-semibold text-brand-700 hover:text-brand-800 inline-flex items-center gap-1">
+              <svg class="w-4 h-4 transition-transform group-open:rotate-45" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
+              Add milestone
+            </summary>
+            <form method="post" action="{% url 'dashboard:project_add_milestone' project.slug %}" class="mt-4 space-y-4">
+              {% csrf_token %}
+              {% for field in milestone_form %}
+                <label class="block">
+                  <span class="text-sm font-medium text-ink-700">{{ field.label }}</span>
+                  {{ field }}
+                  {% if field.errors %}<p class="mt-1 text-xs text-rose-700">{{ field.errors|join:" " }}</p>{% endif %}
+                </label>
+              {% endfor %}
+              <button class="px-4 py-2 rounded-md bg-brand-700 text-white text-sm font-semibold hover:bg-brand-800">Add milestone</button>
+            </form>
+          </details>
+        {% endif %}
+      </section>
+
+    </div>
+
+    {# Sidebar — team #}
+    <aside class="space-y-5">
+      <section class="bg-white border border-ink-100 rounded-xl p-5">
+        <h3 class="font-semibold text-sm mb-1">Team ({{ team|length }})</h3>
+        {% if is_owner %}<p class="text-[11px] text-brand-700 mb-3">You manage the team, applications, and tasks.</p>{% else %}<div class="mb-3"></div>{% endif %}
+        <ul class="space-y-3">
+          {% for m in team %}
+            <li class="flex items-center gap-2.5">
+              <a href="{% url 'dashboard:researcher_profile' m.user.username %}" title="View {{ m.user.display_name }}’s profile">
+                <img src="{{ m.user.avatar_url }}" alt="{{ m.user.display_name }}" class="w-8 h-8 rounded-full object-cover bg-ink-100 hover:ring-2 hover:ring-brand-400">
+              </a>
+              <div class="min-w-0 flex-1">
+                <a href="{% url 'dashboard:researcher_profile' m.user.username %}" class="text-sm font-medium text-ink-900 hover:text-brand-700 truncate block">{{ m.user.display_name }}</a>
+                <span class="text-[11px] text-ink-600">{{ m.get_role_display }}</span>
+                {% if m.user == user %}<span class="ml-1 text-[10px] font-semibold text-brand-700">(you)</span>{% endif %}
+              </div>
+              {% if is_manager and m.role != 'owner' %}
+                <form method="post" action="{% url 'dashboard:project_remove_member' project.slug m.user.pk %}">
+                  {% csrf_token %}
+                  <button type="submit" class="text-ink-400 hover:text-rose-600 text-[11px]" title="Remove member">✕</button>
+                </form>
+              {% endif %}
+            </li>
+          {% endfor %}
+        </ul>
+
+        {% if is_manager and add_member_form %}
+          <details class="mt-4 group">
+            <summary class="cursor-pointer text-xs font-semibold text-brand-700 hover:text-brand-800 inline-flex items-center gap-1">
+              <svg class="w-3.5 h-3.5 transition-transform group-open:rotate-45" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
+              Add member
+            </summary>
+            <form method="post" action="{% url 'dashboard:project_add_member' project.slug %}" class="mt-3 space-y-3">
+              {% csrf_token %}
+              <div>
+                <label for="member-search" class="text-xs font-medium text-ink-700">Choose a researcher</label>
+                <input id="member-search" type="search" placeholder="Search by name or institution…" class="mt-1 w-full rounded-md border border-ink-200 px-2.5 py-2 text-xs" data-member-search>
+                <p class="mt-1 text-[11px] text-ink-500">Select a colleague, or open their profile before adding them.</p>
+                <div class="mt-2 max-h-64 overflow-y-auto rounded-lg border border-ink-100 divide-y divide-ink-100" data-member-list>
+                  {% for candidate in available_members %}
+                    <div class="flex items-center gap-2 p-2 hover:bg-brand-50/50" data-member-card data-member-text="{{ candidate.display_name }} {{ candidate.affiliation }} {{ candidate.get_role_display }}">
+                      <input id="candidate-{{ candidate.pk }}" type="radio" name="user" value="{{ candidate.pk }}" required class="shrink-0 text-brand-700 focus:ring-brand-500">
+                      <img src="{{ candidate.avatar_url }}" alt="" class="w-9 h-9 rounded-full object-cover bg-ink-100 shrink-0">
+                      <label for="candidate-{{ candidate.pk }}" class="min-w-0 flex-1 cursor-pointer">
+                        <span class="block text-xs font-semibold text-ink-900 truncate">{{ candidate.display_name }}</span>
+                        <span class="block text-[11px] text-ink-600 truncate">{{ candidate.get_role_display }}{% if candidate.affiliation %} · {{ candidate.affiliation }}{% endif %}</span>
+                      </label>
+                      <a href="{% url 'dashboard:researcher_profile' candidate.username %}" target="_blank" rel="noopener" class="text-[11px] font-semibold text-brand-700 hover:text-brand-800">Profile</a>
+                    </div>
+                  {% empty %}
+                    <p class="p-3 text-xs text-ink-600">No eligible researchers are available.</p>
+                  {% endfor %}
+                </div>
+              </div>
+              <label class="block"><span class="text-xs font-medium text-ink-700">Project role</span>{{ add_member_form.role }}</label>
+              <button class="w-full px-3 py-1.5 rounded-md bg-brand-700 text-white text-xs font-semibold hover:bg-brand-800">Add</button>
+            </form>
+          </details>
+        {% endif %}
+      </section>
+
+      {% if project.start_date or project.end_date %}
+        <section class="bg-white border border-ink-100 rounded-xl p-5 text-sm space-y-2">
+          {% if project.start_date %}<div class="flex justify-between"><span class="text-ink-600">Start</span><span>{{ project.start_date|date:"N j, Y" }}</span></div>{% endif %}
+          {% if project.end_date %}<div class="flex justify-between"><span class="text-ink-600">End</span><span>{{ project.end_date|date:"N j, Y" }}</span></div>{% endif %}
+        </section>
+      {% endif %}
+    </aside>
+  </div>
+
+</div>
+<script>
+  (() => {
+    const search = document.querySelector('[data-member-search]');
+    const cards = document.querySelectorAll('[data-member-card]');
+    if (!search) return;
+    search.addEventListener('input', () => {
+      const query = search.value.toLowerCase().trim();
+      cards.forEach(card => {
+        const matches = card.dataset.memberText.toLowerCase().includes(query);
+        card.style.display = matches ? '' : 'none';
+      });
+    });
+  })();
+  (() => {
+    document.querySelectorAll('[data-open-project-control]').forEach(button => {
+      button.addEventListener('click', () => {
+        const target = document.getElementById(button.dataset.openProjectControl);
+        if (!target) return;
+        const details = target.matches('details') ? target : target.querySelector('[data-project-control]');
+        if (details) details.open = true;
+        target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+    });
+  })();
+</script>
+{% endblock %}
