@@ -1,5 +1,6 @@
 {# Reusable post card. Requires: post, liked_ids (set of PKs), user #}
-<article class="bg-white border border-ink-100 rounded-xl p-5 space-y-3">
+{% with comment_open=post.pk|stringformat:"s" %}
+<article id="post-{{ post.pk }}" class="bg-white border border-ink-100 rounded-xl p-5 space-y-3">
 
   {# Header #}
   <div class="flex items-start justify-between gap-3">
@@ -33,34 +34,42 @@
         {{ post.like_count }} like{{ post.like_count|pluralize }}
       </button>
     </form>
-    <span class="text-xs text-ink-400">{{ post.comment_count }} comment{{ post.comment_count|pluralize }}</span>
+    <button type="button" data-comment-toggle="{{ post.pk }}"
+            aria-controls="comments-{{ post.pk }}"
+            aria-expanded="{% if request.GET.commented == comment_open %}true{% else %}false{% endif %}"
+            class="flex items-center gap-1.5 text-xs text-ink-500 hover:text-brand-700">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 12h8m-8-4h8m-8 8h4m-7 5l3.5-3.5H19a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v13z"/></svg>
+      {{ post.comment_count }} comment{{ post.comment_count|pluralize }}
+    </button>
   </div>
 
-  {# Comments #}
-  {% if post.comments.all %}
-    <ul class="space-y-2 pt-1">
-      {% for c in post.comments.all %}
-        <li class="flex items-start gap-2.5">
-          <img src="{{ c.author.avatar_url }}" alt="{{ c.author.display_name }}" class="w-6 h-6 rounded-full object-cover shrink-0 mt-0.5">
-          <div class="bg-ink-50 rounded-xl px-3 py-2 flex-1 min-w-0">
-            <span class="text-xs font-semibold text-ink-900">{{ c.author.display_name }}</span>
-            <span class="text-xs text-ink-600 ml-1.5">{{ c.created_at|timesince }} ago</span>
-            <p class="text-xs text-ink-800 mt-0.5">{{ c.body }}</p>
-          </div>
-        </li>
-      {% endfor %}
-    </ul>
-  {% endif %}
+  {# Comments — stay collapsed until the reader opens them #}
+  <div id="comments-{{ post.pk }}" class="space-y-3{% if request.GET.commented != comment_open %} hidden{% endif %}">
+    {% if post.comments.all %}
+      <ul class="space-y-2">
+        {% for c in post.comments.all %}
+          <li class="flex items-start gap-2.5">
+            <img src="{{ c.author.avatar_url }}" alt="{{ c.author.display_name }}" class="w-6 h-6 rounded-full object-cover shrink-0 mt-0.5">
+            <div class="bg-ink-50 rounded-xl px-3 py-2 flex-1 min-w-0">
+              <span class="text-xs font-semibold text-ink-900">{{ c.author.display_name }}</span>
+              <span class="text-xs text-ink-600 ml-1.5">{{ c.created_at|timesince }} ago</span>
+              <p class="text-xs text-ink-800 mt-0.5">{{ c.body }}</p>
+            </div>
+          </li>
+        {% endfor %}
+      </ul>
+    {% endif %}
 
-  {# Add comment #}
-  <form method="post" action="{% url 'dashboard:social_post_comment' post.pk %}" class="flex items-center gap-2 pt-1">
-    {% csrf_token %}
-    <img src="{{ user.avatar_url }}" alt="{{ user.display_name }}" class="w-6 h-6 rounded-full object-cover shrink-0">
-    <input type="text" name="body" placeholder="Write a comment…" maxlength="500"
-           class="flex-1 text-xs rounded-full border border-ink-200 px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-brand-400 bg-ink-50">
-    <button type="submit" class="text-brand-700 hover:text-brand-800">
-      <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 12h14M12 5l7 7-7 7"/></svg>
-    </button>
-  </form>
+    <form method="post" action="{% url 'dashboard:social_post_comment' post.pk %}" class="flex items-center gap-2">
+      {% csrf_token %}
+      <img src="{{ user.avatar_url }}" alt="{{ user.display_name }}" class="w-6 h-6 rounded-full object-cover shrink-0">
+      <input type="text" name="body" placeholder="Write a comment…" maxlength="500"
+             class="flex-1 text-xs rounded-full border border-ink-200 px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-brand-400 bg-ink-50">
+      <button type="submit" class="text-brand-700 hover:text-brand-800">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 12h14M12 5l7 7-7 7"/></svg>
+      </button>
+    </form>
+  </div>
 
 </article>
+{% endwith %}

@@ -7,28 +7,31 @@
 {% block content %}
 <div class="max-w-5xl space-y-6">
 
-  {# Hero card — photo, identity, follow / edit actions, social links #}
+  {# Hero card — identity, actions, headline numbers, external links #}
   <div class="bg-white border border-ink-100 rounded-2xl overflow-hidden">
-    <div class="h-28 bg-gradient-to-br from-brand-800 to-brand-700"></div>
-    <div class="px-6 sm:px-10 pb-8 -mt-12">
-      <div class="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
-        <div class="flex items-end gap-5">
-          <img src="{{ profile_user.avatar_url }}" alt="{{ profile_user.display_name }}"
-               class="w-24 h-24 sm:w-28 sm:h-28 rounded-full object-cover bg-white ring-4 ring-white shrink-0">
-          <div class="pb-2">
-            <span class="inline-flex items-center px-2 py-0.5 rounded-full bg-brand-50 text-brand-700 text-xs font-medium">{{ profile_user.get_role_display }}</span>
-            <h1 class="mt-2 font-serif text-3xl font-semibold leading-tight">{{ profile_user.display_name }}</h1>
-            {% if profile_user.headline %}<p class="text-sm text-ink-700 mt-1">{{ profile_user.headline }}</p>{% endif %}
-            <p class="text-xs text-ink-600 mt-1">
-              {% if profile_user.affiliation %}{{ profile_user.affiliation }}{% endif %}{% if profile_user.country %}{% if profile_user.affiliation %} · {% endif %}{{ profile_user.country }}{% endif %}
+    <div class="h-28 bg-gradient-to-br from-brand-800 via-brand-700 to-brand-500"></div>
+    <div class="px-6 sm:px-10 pb-8">
+      {# Only the avatar overlaps the banner, so the dark name text always sits on white. #}
+      <img src="{{ profile_user.avatar_url }}" alt="{{ profile_user.display_name }}"
+           class="-mt-12 sm:-mt-14 w-24 h-24 sm:w-28 sm:h-28 rounded-full object-cover bg-white ring-4 ring-white shadow-sm">
+
+      <div class="mt-4 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+        <div class="min-w-0">
+          <span class="inline-flex items-center px-2 py-0.5 rounded-full bg-brand-50 text-brand-700 text-xs font-medium">{{ profile_user.get_role_display }}</span>
+          <h1 class="mt-2 font-serif text-3xl font-semibold leading-tight">{{ profile_user.display_name }}</h1>
+          {% if profile_user.headline %}<p class="text-sm text-ink-700 mt-1">{{ profile_user.headline }}</p>{% endif %}
+          {% if profile_user.affiliation or profile_user.country %}
+            <p class="text-xs text-ink-600 mt-1.5 flex items-center gap-1.5">
+              <svg class="w-3.5 h-3.5 shrink-0 text-ink-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 21h18M5 21V7l7-4 7 4v14M9 21v-4h6v4"/></svg>
+              <span class="truncate">{% if profile_user.affiliation %}{{ profile_user.affiliation }}{% endif %}{% if profile_user.country %}{% if profile_user.affiliation %} · {% endif %}{{ profile_user.country }}{% endif %}</span>
             </p>
-            <p class="text-xs text-ink-500 mt-1.5">
-              <span class="font-semibold text-ink-700">{{ follower_count }}</span> follower{{ follower_count|pluralize }} &nbsp;·&nbsp;
-              <span class="font-semibold text-ink-700">{{ following_count }}</span> following
-            </p>
-          </div>
+          {% endif %}
+          <p class="text-xs text-ink-500 mt-2">
+            <span class="font-semibold text-ink-700">{{ follower_count }}</span> follower{{ follower_count|pluralize }} &nbsp;·&nbsp;
+            <span class="font-semibold text-ink-700">{{ following_count }}</span> following
+          </p>
         </div>
-        <div class="flex gap-2">
+        <div class="flex gap-2 shrink-0">
           {% if is_self %}
             <a href="{% url 'dashboard:profile' %}" class="px-4 py-2 rounded-md bg-ink-900 text-white text-sm font-semibold hover:bg-ink-700">Edit profile</a>
           {% else %}
@@ -36,7 +39,7 @@
               {% csrf_token %}
               <button class="px-4 py-2 rounded-md text-sm font-semibold
                 {% if is_following %}border border-ink-200 text-ink-700 hover:bg-rose-50 hover:text-rose-700 hover:border-rose-200{% else %}bg-brand-700 text-white hover:bg-brand-800{% endif %}">
-                {% if is_following %}Unfollow{% else %}Follow{% endif %}
+                {% if is_following %}Following{% else %}Follow{% endif %}
               </button>
             </form>
             <a href="{% url 'dashboard:message_new' %}?q={{ profile_user.username }}"
@@ -46,7 +49,7 @@
       </div>
 
       {% if profile_user.orcid or profile_user.website or profile_user.linkedin or profile_user.google_scholar %}
-        <div class="mt-6 flex flex-wrap gap-2 text-xs">
+        <div class="mt-5 flex flex-wrap gap-2 text-xs">
           {% if profile_user.orcid %}
             <a href="https://orcid.org/{{ profile_user.orcid }}" target="_blank" rel="noopener"
                class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-ink-50 border border-ink-100 text-ink-700 hover:bg-ink-100">
@@ -73,7 +76,7 @@
     </div>
   </div>
 
-  <div class="grid lg:grid-cols-3 gap-6">
+  <div class="grid lg:grid-cols-3 gap-6 items-start">
     <div class="lg:col-span-2 space-y-6">
 
       <section class="bg-white border border-ink-100 rounded-xl p-6 sm:p-8">
@@ -85,62 +88,50 @@
         {% endif %}
       </section>
 
-      {% if user_posts %}
-      <section class="space-y-4">
-        <h2 class="font-serif text-lg font-semibold px-1">Posts</h2>
-        {% for post in user_posts %}
-          {% include 'social/_post.html' %}
-        {% endfor %}
-      </section>
-      {% endif %}
-
       <section class="bg-white border border-ink-100 rounded-xl p-6 sm:p-8">
-        <div class="flex items-baseline justify-between">
+        <div class="flex items-baseline justify-between gap-3">
           <h2 class="font-serif text-lg font-semibold">Publications</h2>
           <span class="text-xs text-ink-600">{{ publications|length }} entr{{ publications|length|pluralize:"y,ies" }}</span>
         </div>
         {% if publications %}
           <ul class="mt-4 divide-y divide-ink-100">
-            {% for p in publications %}
-              <li class="py-4">
-                <div class="font-medium text-ink-900">
-                  {% if p.url %}<a href="{{ p.url }}" target="_blank" rel="noopener" class="hover:text-brand-700">{{ p.title }}</a>{% else %}{{ p.title }}{% endif %}
-                </div>
-                <div class="text-xs text-ink-600 mt-0.5">
-                  {% if p.authors %}{{ p.authors }}{% endif %}
-                  {% if p.venue %}{% if p.authors %} · {% endif %}<span class="italic">{{ p.venue }}</span>{% endif %}
-                  {% if p.year %} · {{ p.year }}{% endif %}
-                  {% if p.doi %} · <a href="https://doi.org/{{ p.doi }}" target="_blank" rel="noopener" class="hover:text-brand-700">DOI</a>{% endif %}
-                </div>
-                {% if p.abstract %}<p class="mt-2 text-sm text-ink-700">{{ p.abstract }}</p>{% endif %}
-              </li>
-            {% endfor %}
+            {% for p in publications|slice:":1" %}{% include 'researchers/_publication.html' %}{% endfor %}
           </ul>
+          {% if publications|length > 1 %}
+            <ul id="publications-extra" class="hidden divide-y divide-ink-100 border-t border-ink-100">
+              {% for p in publications|slice:"1:" %}{% include 'researchers/_publication.html' %}{% endfor %}
+            </ul>
+            {% with rest=publications|length|add:"-1" %}
+              <button type="button" data-reveal="publications-extra"
+                      data-label-more="Show {{ rest }} more publication{{ rest|pluralize }}" data-label-less="Show less"
+                      aria-controls="publications-extra" aria-expanded="false"
+                      class="mt-4 w-full text-center text-xs font-semibold text-brand-700 hover:text-brand-800 border border-ink-100 rounded-lg py-2 hover:bg-ink-50">
+                Show {{ rest }} more publication{{ rest|pluralize }}
+              </button>
+            {% endwith %}
+          {% endif %}
         {% else %}
           <p class="mt-3 text-sm text-ink-600 italic">No publications yet.</p>
         {% endif %}
       </section>
 
-      <section class="bg-white border border-ink-100 rounded-xl p-6 sm:p-8">
-        <h2 class="font-serif text-lg font-semibold">Education</h2>
-        {% if education_entries %}
-          <ul class="mt-4 space-y-4">
-            {% for edu in education_entries %}
-              <li>
-                <div class="font-medium text-ink-900">{{ edu.degree }}</div>
-                <div class="text-sm text-ink-600">{{ edu.institution }}{% if edu.years_label %} · {{ edu.years_label }}{% endif %}</div>
-                {% if edu.description %}<p class="mt-1 text-sm text-ink-700">{{ edu.description }}</p>{% endif %}
-              </li>
-            {% endfor %}
-          </ul>
-        {% else %}
-          <p class="mt-3 text-sm text-ink-600 italic">No education entries yet.</p>
-        {% endif %}
+      <section class="space-y-4">
+        <div class="flex items-baseline justify-between gap-3 px-1">
+          <h2 class="font-serif text-lg font-semibold">Posts</h2>
+          <span class="text-xs text-ink-600">{{ post_count }} post{{ post_count|pluralize }}</span>
+        </div>
+        {% for post in user_posts %}
+          {% include 'social/_post.html' %}
+        {% empty %}
+          <div class="bg-white border border-ink-100 rounded-xl p-6 text-sm text-ink-600 italic">
+            {{ profile_user.display_name }} hasn't posted anything yet.
+          </div>
+        {% endfor %}
       </section>
 
     </div>
 
-    <aside class="space-y-6">
+    <aside class="space-y-6 lg:sticky lg:top-6">
       <section class="bg-white border border-ink-100 rounded-xl p-6">
         <h2 class="font-serif text-base font-semibold">Research interests</h2>
         {% if interests %}
@@ -155,8 +146,22 @@
       </section>
 
       <section class="bg-white border border-ink-100 rounded-xl p-6">
-        <h2 class="font-serif text-base font-semibold">Member since</h2>
-        <p class="mt-2 text-sm text-ink-700">{{ profile_user.date_joined|date:"F Y" }}</p>
+        <h2 class="font-serif text-base font-semibold">Education</h2>
+        {% if education_entries %}
+          <ol class="mt-4 space-y-4">
+            {% for edu in education_entries %}
+              <li class="relative pl-5">
+                <span class="absolute left-0 top-1.5 w-2 h-2 rounded-full bg-brand-500 ring-4 ring-brand-50"></span>
+                {% if not forloop.last %}<span class="absolute left-[3.5px] top-4 -bottom-4 w-px bg-ink-100"></span>{% endif %}
+                <div class="text-sm font-medium text-ink-900">{{ edu.degree }}</div>
+                <div class="text-xs text-ink-600 mt-0.5">{{ edu.institution }}{% if edu.years_label %} · {{ edu.years_label }}{% endif %}</div>
+                {% if edu.description %}<p class="mt-1 text-xs text-ink-700 leading-relaxed">{{ edu.description }}</p>{% endif %}
+              </li>
+            {% endfor %}
+          </ol>
+        {% else %}
+          <p class="mt-3 text-sm text-ink-600 italic">No education entries yet.</p>
+        {% endif %}
       </section>
     </aside>
   </div>

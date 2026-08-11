@@ -1,0 +1,17 @@
+{# Single publication row. Requires: p #}
+<li class="py-4 flex gap-4">
+  <span class="hidden sm:flex w-12 shrink-0 h-fit items-center justify-center px-2 py-1 rounded-md bg-ink-50 border border-ink-100 text-[11px] font-semibold text-ink-600">
+    {% if p.year %}{{ p.year }}{% else %}—{% endif %}
+  </span>
+  <div class="min-w-0">
+    <div class="font-medium text-ink-900">
+      {% if p.url %}<a href="{{ p.url }}" target="_blank" rel="noopener" class="hover:text-brand-700">{{ p.title }}</a>{% else %}{{ p.title }}{% endif %}
+    </div>
+    <div class="text-xs text-ink-600 mt-0.5">
+      {% if p.authors %}{{ p.authors }}{% endif %}
+      {% if p.venue %}{% if p.authors %} · {% endif %}<span class="italic">{{ p.venue }}</span>{% endif %}
+      {% if p.doi %} · <a href="https://doi.org/{{ p.doi }}" target="_blank" rel="noopener" class="text-brand-700 hover:text-brand-800">DOI</a>{% endif %}
+    </div>
+    {% if p.abstract %}<p class="mt-2 text-sm text-ink-700 leading-relaxed">{{ p.abstract }}</p>{% endif %}
+  </div>
+</li>

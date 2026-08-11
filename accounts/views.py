@@ -118,7 +118,10 @@ class ResearcherProfileView(LoginRequiredMixin, DetailView):
         ctx['is_following'] = Follow.objects.filter(
             follower=self.request.user, following=u,
         ).exists()
-        ctx['user_posts'] = u.posts.select_related('author').prefetch_related('likes', 'comments')[:10]
+        ctx['post_count'] = u.posts.count()
+        ctx['user_posts'] = u.posts.select_related('author').prefetch_related(
+            'likes', 'comments__author',
+        )[:10]
         from social.views import liked_post_ids
         ctx['liked_ids'] = liked_post_ids(ctx['user_posts'], self.request.user)
         return ctx

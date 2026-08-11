@@ -1,3 +1,5 @@
+from urllib.parse import parse_qs, urlencode, urlsplit, urlunsplit
+
 from django.contrib.auth.decorators import login_required
 from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
@@ -75,6 +77,20 @@ def toggle_like(request, pk):
     return redirect(request.META.get('HTTP_REFERER') or 'dashboard:home')
 
 
+def redirect_to_post_comments(request, post_pk):
+    """Back to the page the reader came from, with this post's comments expanded."""
+    referer = request.META.get('HTTP_REFERER')
+    if not referer:
+        return redirect('dashboard:home')
+    parts = urlsplit(referer)
+    query = parse_qs(parts.query)
+    query['commented'] = [str(post_pk)]
+    # Scheme and host are dropped so the redirect can only stay on this site.
+    return redirect(urlunsplit(
+        ('', '', parts.path or '/', urlencode(query, doseq=True), f'post-{post_pk}'),
+    ))
+
+
 @login_required
 @require_POST
 def add_comment(request, pk):
@@ -82,7 +98,7 @@ def add_comment(request, pk):
     body = request.POST.get('body', '').strip()
     if body:
         Comment.objects.create(post=post, author=request.user, body=body[:500])
-    return redirect(request.META.get('HTTP_REFERER') or 'dashboard:home')
+    return redirect_to_post_comments(request, post.pk)
 
 
 @login_required

@@ -161,6 +161,29 @@
       });
       document.addEventListener('keydown', event => { if (event.key === 'Escape') notifications.open = false; });
     })();
+    (() => {
+      // Delegated so posts appended by the infinite feed also toggle.
+      document.addEventListener('click', event => {
+        const toggle = event.target.closest('[data-comment-toggle]');
+        if (!toggle) return;
+        const panel = document.getElementById(`comments-${toggle.dataset.commentToggle}`);
+        if (!panel) return;
+        const opened = !panel.classList.toggle('hidden');
+        toggle.setAttribute('aria-expanded', String(opened));
+        if (opened) panel.querySelector('input[name="body"]').focus();
+      });
+    })();
+    (() => {
+      document.addEventListener('click', event => {
+        const trigger = event.target.closest('[data-reveal]');
+        if (!trigger) return;
+        const panel = document.getElementById(trigger.dataset.reveal);
+        if (!panel) return;
+        const opened = !panel.classList.toggle('hidden');
+        trigger.setAttribute('aria-expanded', String(opened));
+        trigger.textContent = opened ? trigger.dataset.labelLess : trigger.dataset.labelMore;
+      });
+    })();
   </script>
 </body>
 </html>
