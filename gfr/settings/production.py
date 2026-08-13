@@ -24,7 +24,7 @@ DEBUG = False
 
 ALLOWED_HOSTS = [
     host.strip()
-    for host in os.environ.get('DJANGO_ALLOWED_HOSTS', '').split(',')
+    for host in os.environ.get('DJANGO_ALLOWED_HOSTS', 'https://gfr-platform.onrender.com').split(',')
     if host.strip()
 ]
 if not ALLOWED_HOSTS:
