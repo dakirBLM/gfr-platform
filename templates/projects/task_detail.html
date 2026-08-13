@@ -39,16 +39,27 @@
           {% if task.due_date %} · Due <span class="font-medium">{{ task.due_date|date:"N j, Y" }}</span>{% endif %}
         </p>
       </div>
-      {# Manager toggle — direct done/open without review flow #}
-      {% if is_manager %}
-        <form method="post" action="{% url 'dashboard:project_toggle_task' project.slug task.pk %}">
-          {% csrf_token %}
-          <button class="px-4 py-2 rounded-md text-sm font-semibold
-            {% if task.status == 'done' %}border border-ink-200 text-ink-700 hover:bg-ink-50{% else %}bg-ink-700 text-white hover:bg-ink-800{% endif %}">
-            {% if task.status == 'done' %}Mark as open{% else %}Force-close{% endif %}
-          </button>
-        </form>
-      {% endif %}
+      {# Manager actions — completed tasks are locked; reopening requires #}
+        {# an explicit, confirmed action via the modal below. #}
+        {% if is_manager %}
+          {% if task.status == 'done' %}
+            <button type="button" id="reopen-trigger"
+                    class="px-4 py-2 rounded-md text-sm font-semibold bg-amber-100 text-amber-800 border border-amber-300 hover:bg-amber-200">
+              Reopen task
+            </button>
+            <form method="post" id="reopen-form" class="hidden"
+                  action="{% url 'dashboard:project_reopen_task' project.slug task.pk %}">
+              {% csrf_token %}
+            </form>
+          {% else %}
+            <form method="post" action="{% url 'dashboard:project_toggle_task' project.slug task.pk %}">
+              {% csrf_token %}
+              <button class="px-4 py-2 rounded-md text-sm font-semibold bg-ink-700 text-white hover:bg-ink-800">
+                Force-close
+              </button>
+            </form>
+          {% endif %}
+        {% endif %}
     </div>
 
     <hr class="border-ink-100">
@@ -190,4 +201,86 @@
   {% endif %}
 
 </div>
+
+{# Reopen confirmation modal — explicit and intentional, never an accidental click #}
+{% if is_manager and task.status == 'done' %}
+<div id="reopen-modal" class="hidden">
+  <div class="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div class="absolute inset-0 bg-ink-950/50 backdrop-blur-sm" data-reopen-close></div>
+    <div role="dialog" aria-modal="true" aria-labelledby="reopen-modal-title"
+         class="relative w-full max-w-md bg-white rounded-2xl shadow-2xl overflow-hidden">
+      <div class="flex items-start gap-4 p-6 pb-4">
+        <div class="shrink-0 w-11 h-11 rounded-full bg-amber-100 flex items-center justify-center">
+          <svg class="w-5 h-5 text-amber-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+          </svg>
+        </div>
+        <div>
+          <h3 id="reopen-modal-title" class="font-serif text-lg font-semibold text-ink-900">Reopen this task?</h3>
+          <p class="mt-1 text-sm text-ink-600">
+            This takes <span class="font-medium text-ink-900">{{ task.title }}</span> back to
+            <span class="font-medium text-ink-900">To do</span>. It is an intentional action and is not part of the normal closing flow.
+          </p>
+        </div>
+      </div>
+      <div class="px-6 pb-2">
+        <p class="text-xs font-semibold text-ink-600 uppercase tracking-wider mb-2">What changes</p>
+        <ul class="space-y-1.5 text-sm">
+          <li class="flex items-center gap-2">
+            <svg class="w-4 h-4 text-ink-400 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+            Status: <span class="font-medium text-emerald-700">Done</span> &rarr; <span class="font-medium text-ink-900">To do</span>
+          </li>
+          {% if task.review_status == 'approved' %}
+            <li class="flex items-center gap-2">
+              <svg class="w-4 h-4 text-amber-500 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+              Approval: <span class="font-medium text-amber-700">Approved</span> badge cleared &mdash; the task must be re-submitted and re-reviewed
+            </li>
+          {% endif %}
+          <li class="flex items-center gap-2">
+            <svg class="w-4 h-4 text-brand-500 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+            Kept: submission history, files and manager feedback are not deleted
+          </li>
+        </ul>
+      </div>
+      <div class="flex justify-end gap-3 px-6 py-5 bg-ink-50/60 mt-3">
+        <button type="button" data-reopen-close class="px-4 py-2 rounded-md text-sm font-semibold text-ink-700 bg-white border border-ink-200 hover:bg-ink-50">
+          Cancel
+        </button>
+        <button type="button" id="reopen-confirm" class="px-4 py-2 rounded-md text-sm font-semibold text-white bg-amber-600 hover:bg-amber-700">
+          Reopen task
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+(function () {
+  var modal = document.getElementById('reopen-modal');
+  var trigger = document.getElementById('reopen-trigger');
+  var confirmBtn = document.getElementById('reopen-confirm');
+  var form = document.getElementById('reopen-form');
+  var revertFocus = null;
+
+  function open() {
+    revertFocus = document.activeElement;
+    modal.classList.remove('hidden');
+    confirmBtn.focus();
+  }
+
+  function close() {
+    modal.classList.add('hidden');
+    if (revertFocus) revertFocus.focus();
+  }
+
+  if (trigger) trigger.addEventListener('click', open);
+  if (confirmBtn) confirmBtn.addEventListener('click', function () { form.submit(); });
+  document.querySelectorAll('[data-reopen-close]').forEach(function (el) {
+    el.addEventListener('click', close);
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && !modal.classList.contains('hidden')) close();
+  });
+})();
+</script>
+{% endif %}
 {% endblock %}

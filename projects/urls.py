@@ -19,6 +19,7 @@ urlpatterns = [
     path('<slug:slug>/tasks/', views.add_task, name='project_add_task'),
     path('<slug:slug>/tasks/<int:task_pk>/', views.task_detail, name='project_task_detail'),
     path('<slug:slug>/tasks/<int:task_pk>/toggle/', views.toggle_task, name='project_toggle_task'),
+    path('<slug:slug>/tasks/<int:task_pk>/reopen/', views.reopen_task, name='project_reopen_task'),
     path('<slug:slug>/tasks/<int:task_pk>/edit/', views.edit_task, name='project_edit_task'),
     path('<slug:slug>/tasks/<int:task_pk>/delete/', views.delete_task, name='project_delete_task'),
     path('<slug:slug>/tasks/<int:task_pk>/submit/', views.submit_task, name='project_submit_task'),
