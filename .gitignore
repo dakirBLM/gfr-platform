@@ -34,3 +34,6 @@ staticfiles/
 htmlcov/
 .pytest_cache/
 .mypy_cache/
+
+# Migration scratch space (production exports/media - never commit)
+migration_workspace/
