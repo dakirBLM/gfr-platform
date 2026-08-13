@@ -24,6 +24,37 @@
       },
     };
   </script>
+
+  <style>
+    #dashboard-sidebar {
+      will-change: width;
+      transition: width 0.2s ease, transform 0.2s ease, opacity 0.2s ease;
+    }
+
+    #dashboard-sidebar.collapsed {
+      width: 12px !important;
+    }
+
+    #dashboard-sidebar.collapsed .sidebar-content {
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+      transform: translateX(-10px);
+    }
+
+    #dashboard-sidebar.collapsed .sidebar-edge-handle {
+      background: rgba(255,255,255,0.7);
+    }
+
+    #dashboard-sidebar.collapsed .sidebar-collapse-handle {
+      opacity: 1;
+    }
+
+    .sidebar-content {
+      transition: opacity 0.18s ease, transform 0.18s ease;
+    }
+  </style>
+
   {% block extra_head %}{% endblock %}
 </head>
 <body class="min-h-screen bg-ink-50 text-ink-900 font-sans antialiased">
@@ -31,8 +62,7 @@
     {% include 'dashboard/_sidebar.html' %}
     <div id="sidebar-backdrop" class="fixed inset-0 z-40 hidden bg-ink-900/40 lg:hidden" aria-hidden="true"></div>
 
-    <div class="flex-1 flex flex-col min-w-0 lg:ml-64">
-      {# Top bar inlined so child templates can override topbar_title and topbar_eyebrow blocks. #}
+    <div id="dashboard-main-shell" class="flex-1 flex flex-col min-w-0 lg:ml-64">
       <header class="bg-white border-b border-ink-100">
         <div class="px-6 lg:px-10 h-14 flex items-center justify-between gap-4">
           <div class="flex items-center gap-3 min-w-0">
@@ -55,7 +85,6 @@
           </div>
 
           <div class="flex items-center gap-2">
-            {# Notification bell — <details> gives us a CSS-only dropdown, no JS needed #}
             <details class="relative" id="notif-details">
               <summary class="relative p-2 rounded-md hover:bg-ink-100 cursor-pointer list-none" aria-label="Notifications">
                 <svg class="w-5 h-5 text-ink-700" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 17h5l-1.4-1.4A2 2 0 0118 14V11a6 6 0 10-12 0v3a2 2 0 01-.6 1.6L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
@@ -108,6 +137,7 @@
                 {% endif %}
               </div>
             </details>
+
             <div class="flex items-center gap-2 pl-2 ml-1 border-l border-ink-100">
               <img src="{{ user.avatar_url }}" alt="{{ user.display_name }}"
                    class="w-8 h-8 rounded-full object-cover bg-ink-100 ring-1 ring-ink-100">
@@ -131,6 +161,7 @@
       </main>
     </div>
   </div>
+
   <script>
     (() => {
       const toggle = document.getElementById('sidebar-toggle');
@@ -153,6 +184,126 @@
       sidebar.querySelectorAll('a').forEach(link => link.addEventListener('click', close));
       document.addEventListener('keydown', event => { if (event.key === 'Escape') close(); });
     })();
+
+    (() => {
+      const sidebar = document.getElementById('dashboard-sidebar');
+      const shell = document.getElementById('dashboard-main-shell');
+      if (!sidebar || !shell) return;
+
+      const resizeHandle = sidebar.querySelector('.sidebar-edge-handle');
+      const collapseHandle = sidebar.querySelector('.sidebar-collapse-handle');
+      if (!resizeHandle || !collapseHandle) return;
+
+      const minWidth = 160;
+      const collapsedWidth = 12;
+
+      const maxWidth = () => Math.min(window.innerWidth * 0.25, 360);
+
+      const setShellOffset = (width) => {
+        if (window.innerWidth >= 1024) {
+          shell.style.marginLeft = `${width}px`;
+        } else {
+          shell.style.marginLeft = '0px';
+        }
+      };
+
+      const applyWidth = (width) => {
+        const limit = maxWidth();
+        const nextWidth = Math.min(Math.max(width, sidebar.classList.contains('collapsed') ? collapsedWidth : minWidth), limit);
+        sidebar.style.width = `${nextWidth}px`;
+        sidebar.dataset.width = String(nextWidth);
+        setShellOffset(nextWidth);
+      };
+
+      const setCollapsed = (collapsed) => {
+        sidebar.classList.toggle('collapsed', collapsed);
+        if (collapsed) {
+          applyWidth(collapsedWidth);
+        } else {
+          const fallback = Number(sidebar.dataset.width || 256);
+          applyWidth(Math.min(Math.max(fallback, minWidth), maxWidth()));
+        }
+      };
+
+      const initial = Number(sidebar.dataset.width || sidebar.offsetWidth || 256);
+      applyWidth(initial);
+
+      let resizeDrag = null;
+      let collapseDrag = null;
+
+      resizeHandle.addEventListener('pointerdown', (event) => {
+        if (window.innerWidth < 1024) return;
+        event.preventDefault();
+        resizeDrag = { startX: event.clientX, startWidth: sidebar.offsetWidth };
+      });
+
+      collapseHandle.addEventListener('pointerdown', (event) => {
+        if (window.innerWidth < 1024) return;
+        event.preventDefault();
+        collapseDrag = { startX: event.clientX, startY: event.clientY, startWidth: sidebar.offsetWidth };
+      });
+
+      document.addEventListener('pointermove', (event) => {
+        if (resizeDrag) {
+          const next = resizeDrag.startWidth + (event.clientX - resizeDrag.startX);
+          applyWidth(next);
+          sidebar.classList.toggle('collapsed', next <= collapsedWidth + 8);
+          return;
+        }
+
+        if (collapseDrag) {
+          const deltaY = event.clientY - collapseDrag.startY;
+          const deltaX = event.clientX - collapseDrag.startX;
+          const isCollapsed = sidebar.classList.contains('collapsed');
+
+          if (isCollapsed) {
+            if (deltaX > 24) {
+              const reopened = Math.max(minWidth, collapseDrag.startWidth + deltaX);
+              applyWidth(reopened);
+              sidebar.classList.remove('collapsed');
+            }
+            return;
+          }
+
+          if (deltaY > 80 || deltaX > 90) {
+            setCollapsed(true);
+            collapseDrag = null;
+            return;
+          }
+
+          const next = collapseDrag.startWidth + deltaX;
+          applyWidth(next);
+        }
+      });
+
+      document.addEventListener('pointerup', () => {
+        resizeDrag = null;
+        collapseDrag = null;
+      });
+
+      sidebar.addEventListener('dblclick', () => {
+        setCollapsed(!sidebar.classList.contains('collapsed'));
+      });
+
+      window.addEventListener('resize', () => {
+        const currentWidth = sidebar.offsetWidth || Number(sidebar.dataset.width || 256);
+
+        if (window.innerWidth < 1024) {
+          setShellOffset(0);
+          return;
+        }
+
+        const limit = maxWidth();
+        const finalWidth = currentWidth > limit ? limit : currentWidth;
+
+        if (finalWidth !== currentWidth) {
+          applyWidth(finalWidth);
+        }
+
+        setShellOffset(sidebar.offsetWidth);
+      });
+    })();
+
     (() => {
       const notifications = document.getElementById('notif-details');
       if (!notifications) return;
@@ -161,8 +312,8 @@
       });
       document.addEventListener('keydown', event => { if (event.key === 'Escape') notifications.open = false; });
     })();
+
     (() => {
-      // Delegated so posts appended by the infinite feed also toggle.
       document.addEventListener('click', event => {
         const toggle = event.target.closest('[data-comment-toggle]');
         if (!toggle) return;
@@ -173,6 +324,7 @@
         if (opened) panel.querySelector('input[name="body"]').focus();
       });
     })();
+
     (() => {
       document.addEventListener('click', event => {
         const trigger = event.target.closest('[data-reveal]');

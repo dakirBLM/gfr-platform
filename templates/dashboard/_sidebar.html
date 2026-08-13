@@ -1,75 +1,83 @@
 {# Persistent left sidebar — anchors the dashboard's app-shell identity, distinct from the marketing nav. #}
 <aside id="dashboard-sidebar" aria-label="Dashboard navigation"
-       class="fixed inset-y-0 left-0 z-50 flex w-72 shrink-0 -translate-x-full bg-ink-900 text-ink-100 flex-col shadow-2xl transition-transform duration-200 ease-out lg:fixed lg:inset-y-0 lg:left-0 lg:w-64 lg:translate-x-0 lg:shadow-none overflow-y-auto">
-  <div class="px-5 py-5 flex items-center gap-2 border-b border-white/10">
-    <span class="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-white text-brand-800 font-serif text-lg font-bold">G</span>
-    <div>
-      <div class="font-serif text-base font-semibold text-white leading-tight">GFR</div>
-      <div class="text-[11px] uppercase tracking-wider text-white/50">Workspace</div>
+       class="sidebar-shell fixed inset-y-0 left-0 z-50 flex -translate-x-full bg-ink-900 text-ink-100 shadow-2xl transition-[width,transform,opacity] duration-200 ease-out lg:fixed lg:inset-y-0 lg:left-0 lg:translate-x-0 lg:shadow-none overflow-y-auto"
+       style="width: 256px; min-width: 160px; max-width: 25vw;">
+  <div class="sidebar-content flex h-full w-full flex-col overflow-y-auto transition-all duration-200 ease-out">
+    <div class="px-5 py-5 flex items-center gap-2 border-b border-white/10">
+      <span class="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-white text-brand-800 font-serif text-lg font-bold">G</span>
+      <div>
+        <div class="font-serif text-base font-semibold text-white leading-tight">GFR</div>
+        <div class="text-[11px] uppercase tracking-wider text-white/50">Workspace</div>
+      </div>
+    </div>
+
+    <nav class="flex-1 px-3 py-4 space-y-1 text-sm">
+      {% with section=active_section|default:'' %}
+      <a href="{% url 'dashboard:home' %}" class="flex items-center gap-3 px-3 py-2 rounded-md {% if section == 'home' %}bg-white/10 text-white{% else %}text-white/70 hover:bg-white/5 hover:text-white{% endif %}">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 12l9-9 9 9M5 10v10h14V10"/></svg>
+        Home
+      </a>
+      <a href="{% url 'dashboard:profile' %}" class="flex items-center gap-3 px-3 py-2 rounded-md {% if section == 'profile' %}bg-white/10 text-white{% else %}text-white/70 hover:bg-white/5 hover:text-white{% endif %}">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16 14a4 4 0 10-8 0M12 12a4 4 0 100-8 4 4 0 000 8zM4 21v-1a4 4 0 014-4h8a4 4 0 014 4v1"/></svg>
+        My profile
+      </a>
+      <div class="pt-4 pb-1 px-3 text-[11px] uppercase tracking-wider text-white/40">Publishing</div>
+      <a href="{% url 'dashboard:journal_list' %}" class="flex items-center gap-3 px-3 py-2 rounded-md {% if section == 'journals' %}bg-white/10 text-white{% else %}text-white/70 hover:bg-white/5 hover:text-white{% endif %}">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 5a2 2 0 012-2h6v18H5a2 2 0 01-2-2V5zm10-2h6a2 2 0 012 2v14a2 2 0 01-2 2h-6V3z"/></svg>
+        Journals
+      </a>
+      <a href="{% url 'dashboard:manuscript_list' %}" class="flex items-center gap-3 px-3 py-2 rounded-md {% if section == 'manuscripts' %}bg-white/10 text-white{% else %}text-white/70 hover:bg-white/5 hover:text-white{% endif %}">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6M5 3h14a2 2 0 012 2v16l-4-2-4 2-4-2-4 2V5a2 2 0 012-2z"/></svg>
+        My manuscripts
+      </a>
+      {% if user.can_peer_review %}
+      <a href="{% url 'dashboard:review_queue' %}" class="flex items-center gap-3 px-3 py-2 rounded-md {% if section == 'reviews' %}bg-white/10 text-white{% else %}text-white/70 hover:bg-white/5 hover:text-white{% endif %}">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
+        Review queue
+      </a>
+      {% endif %}
+      <a href="{% url 'dashboard:project_list' %}" class="flex items-center gap-3 px-3 py-2 rounded-md {% if section == 'projects' %}bg-white/10 text-white{% else %}text-white/70 hover:bg-white/5 hover:text-white{% endif %}">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4h6l2 3h8v11a2 2 0 01-2 2H4a2 2 0 01-2-2V6a2 2 0 012-2z"/></svg>
+        Projects
+      </a>
+      <a href="{% url 'dashboard:conference_list' %}" class="flex items-center gap-3 px-3 py-2 rounded-md {% if section == 'conferences' %}bg-white/10 text-white{% else %}text-white/70 hover:bg-white/5 hover:text-white{% endif %}">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 2v3M16 2v3M3 9h18M5 5h14a2 2 0 012 2v12a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2z"/></svg>
+        Conferences
+      </a>
+
+      <div class="pt-4 pb-1 px-3 text-[11px] uppercase tracking-wider text-white/40">Network</div>
+      <a href="{% url 'dashboard:researcher_directory' %}" class="flex items-center gap-3 px-3 py-2 rounded-md {% if section == 'researchers' %}bg-white/10 text-white{% else %}text-white/70 hover:bg-white/5 hover:text-white{% endif %}">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20v-1a4 4 0 00-4-4H7a4 4 0 00-4 4v1m6-9a4 4 0 100-8 4 4 0 000 8zm10 9v-1a4 4 0 00-3-3.87M14 3.13a4 4 0 010 7.75"/></svg>
+        Researchers
+      </a>
+      <a href="{% url 'dashboard:message_inbox' %}" class="flex items-center gap-3 px-3 py-2 rounded-md {% if section == 'messages' %}bg-white/10 text-white{% else %}text-white/70 hover:bg-white/5 hover:text-white{% endif %}">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 15a4 4 0 01-4 4H7l-4 3V7a4 4 0 014-4h10a4 4 0 014 4v8z"/></svg>
+        Messages
+        {% if unread_messages_count %}
+          <span class="ml-auto inline-flex items-center justify-center w-5 h-5 rounded-full bg-rose-500 text-white text-[10px] font-bold">{{ unread_messages_count }}</span>
+        {% endif %}
+      </a>
+
+      {% if user.can_manage_users %}
+      <div class="pt-4 pb-1 px-3 text-[11px] uppercase tracking-wider text-white/40">Admin</div>
+      <a href="/admin/" class="flex items-center gap-3 px-3 py-2 rounded-md text-white/70 hover:bg-white/5 hover:text-white">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317a1 1 0 011.35 0l1.387 1.198a1 1 0 00.86.234l1.81-.299a1 1 0 011.13.795l.376 1.81a1 1 0 00.582.696l1.704.7a1 1 0 01.557 1.27l-.7 1.704a1 1 0 00-.026.94l-.7 1.704a1 1 0 01-.557 1.27l-1.704.7a1 1 0 00-.582.696l-.376 1.81a1 1 0 01-1.13.795l-1.81-.299a1 1 0 00-.86.234l-1.387 1.198a1 1 0 01-1.35 0L8.938 19.575a1 1 0 00-.86-.234l-1.81.299a1 1 0 01-1.13-.795l-.376-1.81a1 1 0 00-.582-.696l-1.704-.7a1 1 0 01-.557-1.27l.7-1.704a1 1 0 00.026-.94l-.7-1.704a1 1 0 01.557-1.27l1.704-.7a1 1 0 00.582-.696l.376-1.81a1 1 0 011.13-.795l1.81.299a1 1 0 00.86-.234l1.387-1.198z"/><circle cx="12" cy="12" r="3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Admin console
+      </a>
+      {% endif %}
+      {% endwith %}
+    </nav>
+
+    <div class="px-3 py-3 border-t border-white/10">
+      <a href="{% url 'core:home' %}" class="flex items-center gap-3 px-3 py-2 rounded-md text-white/60 hover:bg-white/5 hover:text-white text-sm">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10 19l-7-7 7-7M3 12h18"/></svg>
+        Back to GFR.org
+      </a>
     </div>
   </div>
 
-  <nav class="flex-1 px-3 py-4 space-y-1 text-sm">
-    {% with section=active_section|default:'' %}
-    <a href="{% url 'dashboard:home' %}" class="flex items-center gap-3 px-3 py-2 rounded-md {% if section == 'home' %}bg-white/10 text-white{% else %}text-white/70 hover:bg-white/5 hover:text-white{% endif %}">
-      <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 12l9-9 9 9M5 10v10h14V10"/></svg>
-      Home
-    </a>
-    <a href="{% url 'dashboard:profile' %}" class="flex items-center gap-3 px-3 py-2 rounded-md {% if section == 'profile' %}bg-white/10 text-white{% else %}text-white/70 hover:bg-white/5 hover:text-white{% endif %}">
-      <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16 14a4 4 0 10-8 0M12 12a4 4 0 100-8 4 4 0 000 8zM4 21v-1a4 4 0 014-4h8a4 4 0 014 4v1"/></svg>
-      My profile
-    </a>
-    <div class="pt-4 pb-1 px-3 text-[11px] uppercase tracking-wider text-white/40">Publishing</div>
-    <a href="{% url 'dashboard:journal_list' %}" class="flex items-center gap-3 px-3 py-2 rounded-md {% if section == 'journals' %}bg-white/10 text-white{% else %}text-white/70 hover:bg-white/5 hover:text-white{% endif %}">
-      <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 5a2 2 0 012-2h6v18H5a2 2 0 01-2-2V5zm10-2h6a2 2 0 012 2v14a2 2 0 01-2 2h-6V3z"/></svg>
-      Journals
-    </a>
-    <a href="{% url 'dashboard:manuscript_list' %}" class="flex items-center gap-3 px-3 py-2 rounded-md {% if section == 'manuscripts' %}bg-white/10 text-white{% else %}text-white/70 hover:bg-white/5 hover:text-white{% endif %}">
-      <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6M5 3h14a2 2 0 012 2v16l-4-2-4 2-4-2-4 2V5a2 2 0 012-2z"/></svg>
-      My manuscripts
-    </a>
-    {% if user.can_peer_review %}
-    <a href="{% url 'dashboard:review_queue' %}" class="flex items-center gap-3 px-3 py-2 rounded-md {% if section == 'reviews' %}bg-white/10 text-white{% else %}text-white/70 hover:bg-white/5 hover:text-white{% endif %}">
-      <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
-      Review queue
-    </a>
-    {% endif %}
-    <a href="{% url 'dashboard:project_list' %}" class="flex items-center gap-3 px-3 py-2 rounded-md {% if section == 'projects' %}bg-white/10 text-white{% else %}text-white/70 hover:bg-white/5 hover:text-white{% endif %}">
-      <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4h6l2 3h8v11a2 2 0 01-2 2H4a2 2 0 01-2-2V6a2 2 0 012-2z"/></svg>
-      Projects
-    </a>
-    <a href="{% url 'dashboard:conference_list' %}" class="flex items-center gap-3 px-3 py-2 rounded-md {% if section == 'conferences' %}bg-white/10 text-white{% else %}text-white/70 hover:bg-white/5 hover:text-white{% endif %}">
-      <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 2v3M16 2v3M3 9h18M5 5h14a2 2 0 012 2v12a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2z"/></svg>
-      Conferences
-    </a>
-
-    <div class="pt-4 pb-1 px-3 text-[11px] uppercase tracking-wider text-white/40">Network</div>
-    <a href="{% url 'dashboard:researcher_directory' %}" class="flex items-center gap-3 px-3 py-2 rounded-md {% if section == 'researchers' %}bg-white/10 text-white{% else %}text-white/70 hover:bg-white/5 hover:text-white{% endif %}">
-      <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20v-1a4 4 0 00-4-4H7a4 4 0 00-4 4v1m6-9a4 4 0 100-8 4 4 0 000 8zm10 9v-1a4 4 0 00-3-3.87M14 3.13a4 4 0 010 7.75"/></svg>
-      Researchers
-    </a>
-    <a href="{% url 'dashboard:message_inbox' %}" class="flex items-center gap-3 px-3 py-2 rounded-md {% if section == 'messages' %}bg-white/10 text-white{% else %}text-white/70 hover:bg-white/5 hover:text-white{% endif %}">
-      <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 15a4 4 0 01-4 4H7l-4 3V7a4 4 0 014-4h10a4 4 0 014 4v8z"/></svg>
-      Messages
-      {% if unread_messages_count %}
-        <span class="ml-auto inline-flex items-center justify-center w-5 h-5 rounded-full bg-rose-500 text-white text-[10px] font-bold">{{ unread_messages_count }}</span>
-      {% endif %}
-    </a>
-
-    {% if user.can_manage_users %}
-    <div class="pt-4 pb-1 px-3 text-[11px] uppercase tracking-wider text-white/40">Admin</div>
-    <a href="/admin/" class="flex items-center gap-3 px-3 py-2 rounded-md text-white/70 hover:bg-white/5 hover:text-white">
-      <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317a1 1 0 011.35 0l1.387 1.198a1 1 0 00.86.234l1.81-.299a1 1 0 011.13.795l.376 1.81a1 1 0 00.582.696l1.704.7a1 1 0 01.557 1.27l-.7 1.704a1 1 0 00-.026.94l.7 1.704a1 1 0 01-.557 1.27l-1.704.7a1 1 0 00-.582.696l-.376 1.81a1 1 0 01-1.13.795l-1.81-.299a1 1 0 00-.86.234l-1.387 1.198a1 1 0 01-1.35 0L8.938 19.575a1 1 0 00-.86-.234l-1.81.299a1 1 0 01-1.13-.795l-.376-1.81a1 1 0 00-.582-.696l-1.704-.7a1 1 0 01-.557-1.27l.7-1.704a1 1 0 00.026-.94l-.7-1.704a1 1 0 01.557-1.27l1.704-.7a1 1 0 00.582-.696l.376-1.81a1 1 0 011.13-.795l1.81.299a1 1 0 00.86-.234l1.387-1.198z"/><circle cx="12" cy="12" r="3" stroke-linecap="round" stroke-linejoin="round"/></svg>
-      Admin console
-    </a>
-    {% endif %}
-    {% endwith %}
-  </nav>
-
-  <div class="px-3 py-3 border-t border-white/10">
-    <a href="{% url 'core:home' %}" class="flex items-center gap-3 px-3 py-2 rounded-md text-white/60 hover:bg-white/5 hover:text-white text-sm">
-      <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10 19l-7-7 7-7M3 12h18"/></svg>
-      Back to GFR.org
-    </a>
+  <div class="sidebar-edge-handle absolute inset-y-0 right-0 w-[2px] cursor-ew-resize bg-white/20 transition-all duration-200 hover:bg-brand-400/80"></div>
+  <div class="sidebar-collapse-handle absolute bottom-0 left-0 right-0 h-4 cursor-ns-resize border-b border-white/10 bg-transparent transition-opacity duration-200">
+    <div class="mx-auto mt-1 h-[2px] w-10 rounded-full bg-white/45"></div>
   </div>
 </aside>
