@@ -191,20 +191,21 @@
                 {% elif task.assigned_to == user and task.review_status == 'submitted' %}task-pending-review
                 {% endif %}">
 
-                {# Status indicator — ONLY managers get a clickable checkbox #}
-                {% if is_manager %}
+                {# Status indicator — managers: clickable only while open; completed tasks are read-only #}
+                {% if is_manager and task.status != 'done' %}
                   <form method="post" action="{% url 'dashboard:project_toggle_task' project.slug task.pk %}" class="shrink-0 mt-0.5">
                     {% csrf_token %}
                     <button type="submit"
-                            title="{% if task.status == 'done' %}Mark as open{% else %}Mark as done{% endif %}"
-                            class="w-5 h-5 rounded border-2 flex items-center justify-center transition-colors
-                              {% if task.status == 'done' %}bg-emerald-500 border-emerald-500 text-white hover:bg-emerald-600
-                              {% else %}border-ink-300 hover:border-brand-500 hover:bg-brand-50{% endif %}">
-                      {% if task.status == 'done' %}
-                        <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
-                      {% endif %}
+                            title="Mark as done"
+                            class="w-5 h-5 rounded border-2 flex items-center justify-center transition-colors border-ink-300 hover:border-brand-500 hover:bg-brand-50">
                     </button>
                   </form>
+                {% elif is_manager and task.status == 'done' %}
+                  {# Completed badge — approving again is not possible from here #}
+                  <span class="shrink-0 mt-0.5 w-5 h-5 rounded border-2 flex items-center justify-center bg-emerald-500 border-emerald-500 text-white"
+                        title="Completed — use 'Reopen task' on the task page to open it again">
+                    <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                  </span>
                 {% else %}
                   {# Members see a read-only status indicator — no toggle, no form #}
                   <span class="shrink-0 mt-0.5 w-5 h-5 rounded border-2 flex items-center justify-center

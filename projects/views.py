@@ -5,6 +5,7 @@ from django.db.models import Q
 from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
+from django.views.decorators.http import require_POST
 from django.views.generic import ListView
 
 from accounts.models import Role
@@ -348,14 +349,42 @@ def delete_task(request, slug, task_pk):
 
 
 @login_required
+@require_POST
 def toggle_task(request, slug, task_pk):
-    """Simple toggle for managers — members must use submit_task instead."""
+    """One-way close for managers — a completed task stays closed.
+
+    Reopening is a separate, explicit action (reopen_task); the approve
+    checkmark must never silently flip a completed task back to open.
+    """
     project = get_object_or_404(Project, slug=slug)
     task = get_object_or_404(Task, pk=task_pk, project=project)
     _require_manager(project, request.user)
-    task.status = TaskStatus.TODO if task.status == TaskStatus.DONE else TaskStatus.DONE
+    if task.status == TaskStatus.DONE:
+        messages.info(request, 'Completed tasks stay closed — use "Reopen task" to open one again intentionally.')
+        return redirect('dashboard:project_detail', slug=slug)
+    task.status = TaskStatus.DONE
     task.save(update_fields=['status'])
     return redirect('dashboard:project_detail', slug=slug)
+
+
+@login_required
+@require_POST
+def reopen_task(request, slug, task_pk):
+    """Explicit manager action: reopen a completed task for more work."""
+    project = get_object_or_404(Project, slug=slug)
+    task = get_object_or_404(Task, pk=task_pk, project=project)
+    _require_manager(project, request.user)
+    if task.status != TaskStatus.DONE:
+        messages.info(request, 'Only completed tasks can be reopened.')
+        return redirect('dashboard:project_task_detail', slug=slug, task_pk=task_pk)
+    task.status = TaskStatus.TODO
+    if task.review_status == ReviewStatus.APPROVED:
+        # An approved task re-enters work: clear the approval badge so the
+        # member can submit again and the manager can re-review.
+        task.review_status = ReviewStatus.NONE
+    task.save(update_fields=['status', 'review_status'])
+    messages.success(request, f'Task "{task.title}" reopened for work.')
+    return redirect('dashboard:project_task_detail', slug=slug, task_pk=task_pk)
 
 
 @login_required

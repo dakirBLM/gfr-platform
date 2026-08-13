@@ -39,15 +39,25 @@
           {% if task.due_date %} · Due <span class="font-medium">{{ task.due_date|date:"N j, Y" }}</span>{% endif %}
         </p>
       </div>
-      {# Manager toggle — direct done/open without review flow #}
+      {# Manager actions — closing is one-way; reopening is explicit and confirmed #}
       {% if is_manager %}
-        <form method="post" action="{% url 'dashboard:project_toggle_task' project.slug task.pk %}">
-          {% csrf_token %}
-          <button class="px-4 py-2 rounded-md text-sm font-semibold
-            {% if task.status == 'done' %}border border-ink-200 text-ink-700 hover:bg-ink-50{% else %}bg-ink-700 text-white hover:bg-ink-800{% endif %}">
-            {% if task.status == 'done' %}Mark as open{% else %}Force-close{% endif %}
-          </button>
-        </form>
+        {% if task.status == 'done' %}
+          <form method="post" action="{% url 'dashboard:project_reopen_task' project.slug task.pk %}"
+                class="flex flex-col items-end gap-1">
+            {% csrf_token %}
+            <button type="submit"
+                    class="px-4 py-2 rounded-md border border-amber-300 text-amber-800 text-sm font-semibold hover:bg-amber-50"
+                    onclick="return confirm('Reopen this completed task? It will move back to To do.');">
+              Reopen task
+            </button>
+            <span class="text-[11px] text-ink-500">Completed tasks are locked — reopening is intentional</span>
+          </form>
+        {% else %}
+          <form method="post" action="{% url 'dashboard:project_toggle_task' project.slug task.pk %}">
+            {% csrf_token %}
+            <button class="px-4 py-2 rounded-md text-sm font-semibold bg-ink-700 text-white hover:bg-ink-800">Force-close</button>
+          </form>
+        {% endif %}
       {% endif %}
     </div>
 
