@@ -43,11 +43,10 @@
       {% if is_manager %}
         {% if task.status == 'done' %}
           <form method="post" action="{% url 'dashboard:project_reopen_task' project.slug task.pk %}"
-                class="flex flex-col items-end gap-1">
+                id="reopen-form" class="flex flex-col items-end gap-1">
             {% csrf_token %}
-            <button type="submit"
-                    class="px-4 py-2 rounded-md border border-amber-300 text-amber-800 text-sm font-semibold hover:bg-amber-50"
-                    onclick="return confirm('Reopen this completed task? It will move back to To do.');">
+            <button type="button" data-reopen-trigger
+                    class="px-4 py-2 rounded-md border border-amber-300 text-amber-800 text-sm font-semibold hover:bg-amber-50">
               Reopen task
             </button>
             <span class="text-[11px] text-ink-500">Completed tasks are locked — reopening is intentional</span>
@@ -199,5 +198,67 @@
     </section>
   {% endif %}
 
+  {# Reopen confirmation dialog — explicit, with a summary of the changes #}
+  {% if is_manager and task.status == 'done' %}
+    <div id="reopen-modal" class="fixed inset-0 z-50 hidden items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="reopen-modal-title">
+      <div class="absolute inset-0 bg-ink-900/50" data-reopen-cancel></div>
+      <div class="relative w-full max-w-md rounded-xl bg-white shadow-2xl p-6">
+        <h3 id="reopen-modal-title" class="font-serif text-lg font-semibold text-ink-900">Reopen this completed task?</h3>
+        <p class="mt-1 text-sm text-ink-600">The task will move back into work with these changes:</p>
+
+        <ul class="mt-4 space-y-3 text-sm">
+          <li class="flex items-start gap-2.5">
+            <span class="mt-0.5 w-5 h-5 rounded-full bg-amber-500 text-white flex items-center justify-center shrink-0">
+              <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 5l7 7-7 7M5 12h14"/></svg>
+            </span>
+            <span class="text-ink-700"><span class="font-semibold text-ink-900">Status:</span> <s class="text-ink-400">Done</s> &rarr; <span class="font-semibold text-amber-700">To do</span></span>
+          </li>
+          {% if task.review_status == 'approved' %}
+            <li class="flex items-start gap-2.5">
+              <span class="mt-0.5 w-5 h-5 rounded-full bg-rose-500 text-white flex items-center justify-center shrink-0">
+                <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+              </span>
+              <span class="text-ink-700"><span class="font-semibold text-ink-900">Approval:</span> badge <s class="text-ink-400">Approved</s> cleared &mdash; the member must re-submit the work for a new review.</span>
+            </li>
+          {% endif %}
+          <li class="flex items-start gap-2.5">
+            <span class="mt-0.5 w-5 h-5 rounded-full bg-emerald-500 text-white flex items-center justify-center shrink-0">
+              <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+            </span>
+            <span class="text-ink-700"><span class="font-semibold text-ink-900">Kept:</span> submission history, attached files, and your feedback stay visible.</span>
+          </li>
+        </ul>
+
+        <div class="mt-6 flex justify-end gap-3">
+          <button type="button" data-reopen-cancel class="px-4 py-2 rounded-md border border-ink-200 text-ink-700 text-sm font-semibold hover:bg-ink-50">Cancel</button>
+          <button type="button" data-reopen-confirm class="px-4 py-2 rounded-md bg-amber-600 text-white text-sm font-semibold hover:bg-amber-700">Reopen task</button>
+        </div>
+      </div>
+    </div>
+  {% endif %}
+
 </div>
+<script>
+  (() => {
+    const modal = document.getElementById('reopen-modal');
+    if (!modal) return;
+    const trigger = document.querySelector('[data-reopen-trigger]');
+    const form = document.getElementById('reopen-form');
+    const confirmBtn = modal.querySelector('[data-reopen-confirm]');
+    if (!trigger || !form || !confirmBtn) return;
+    const show = () => {
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+      confirmBtn.focus();
+    };
+    const hide = () => {
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+    };
+    trigger.addEventListener('click', show);
+    confirmBtn.addEventListener('click', () => form.submit());
+    modal.querySelectorAll('[data-reopen-cancel]').forEach(el => el.addEventListener('click', hide));
+    modal.addEventListener('keydown', e => { if (e.key === 'Escape') hide(); });
+  })();
+</script>
 {% endblock %}
