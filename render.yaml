@@ -3,7 +3,9 @@ services:
     name: gfr-platform
     runtime: python
     plan: free
-    buildCommand: pip install -r requirements.txt && python manage.py migrate --noinput && python manage.py collectstatic --noinput
+    # fix_sequences is safe to re-run; needed after importing rows with explicit IDs
+    # into Postgres (free Render has no shell to run it manually).
+    buildCommand: pip install -r requirements.txt && python manage.py migrate --noinput && python manage.py fix_sequences && python manage.py collectstatic --noinput
     startCommand: gunicorn gfr.wsgi:application
     envVars:
       - key: DJANGO_SETTINGS_MODULE
