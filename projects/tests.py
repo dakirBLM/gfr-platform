@@ -5,6 +5,25 @@ from accounts.models import Role, User
 from .models import MemberRole, Project, ProjectApplication, ProjectMembership, ProjectSection, Task
 
 
+class SlugFallbackTests(TestCase):
+    """Non-Latin titles must never produce an empty (or colliding) slug."""
+
+    def setUp(self):
+        self.user = User.objects.create_user('slugger', 'slug@example.com', 'password', role=Role.PROFESSOR)
+
+    def test_arabic_title_gets_a_valid_unique_slug(self):
+        a = Project.objects.create(title='دراسة بحثية', description='x', created_by=self.user)
+        b = Project.objects.create(title='دراسة بحثية', description='y', created_by=self.user)
+        self.assertTrue(a.slug)
+        self.assertTrue(b.slug)
+        self.assertNotEqual(a.slug, b.slug)
+        self.assertNotEqual(a.slug, '')
+        self.assertNotEqual(b.slug, '')
+        # Both URLs must resolve.
+        self.assertEqual(reverse('dashboard:project_detail', args=[a.slug]), f'/app/projects/{a.slug}/')
+        self.assertEqual(reverse('dashboard:project_detail', args=[b.slug]), f'/app/projects/{b.slug}/')
+
+
 class GuarantorWorkflowTests(TestCase):
     def setUp(self):
         self.guarantor = User.objects.create_user('guarantor', 'g@example.com', 'password', role=Role.PROFESSOR)

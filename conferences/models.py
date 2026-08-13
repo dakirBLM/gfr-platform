@@ -53,7 +53,9 @@ class Conference(models.Model):
 
     def save(self, *args, **kwargs):
         if not self.slug:
-            base = slugify(self.title)[:200]
+            # Non-Latin titles slugify to an empty string; fall back so the
+            # conference detail URL can never be empty.
+            base = slugify(self.title)[:200] or 'conference'
             slug, n = base, 1
             while Conference.objects.filter(slug=slug).exclude(pk=self.pk).exists():
                 slug = f'{base}-{n}'

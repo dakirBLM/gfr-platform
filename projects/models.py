@@ -48,7 +48,10 @@ class Project(models.Model):
 
     def save(self, *args, **kwargs):
         if not self.slug:
-            base = slugify(self.title)[:200]
+            # Non-Latin titles (Arabic, CJK, ...) slugify to an empty string;
+            # fall back so the row can never carry an empty slug that breaks
+            # URL reversing (e.g. the project list page).
+            base = slugify(self.title)[:200] or 'project'
             slug, n = base, 1
             while Project.objects.filter(slug=slug).exclude(pk=self.pk).exists():
                 slug = f'{base}-{n}'
