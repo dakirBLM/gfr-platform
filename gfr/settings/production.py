@@ -24,13 +24,15 @@ DEBUG = False
 
 ALLOWED_HOSTS = [
     host.strip()
-    for host in os.environ.get('DJANGO_ALLOWED_HOSTS', '').split(',')
+    for host in os.environ.get(
+        'DJANGO_ALLOWED_HOSTS', 'gfr-platform.onrender.com'
+    ).split(',')
     if host.strip()
 ]
 if not ALLOWED_HOSTS:
     raise ValueError(
         'DJANGO_ALLOWED_HOSTS must be set for production '
-        '(comma-separated hostnames, e.g. your-app.onrender.com).'
+        '(comma-separated hostnames, e.g. gfr-platform.onrender.com).'
     )
 
 _secret = os.environ.get('DJANGO_SECRET_KEY', '')
@@ -92,7 +94,7 @@ if os.environ.get('SUPABASE_S3_ACCESS_KEY') and os.environ.get('SUPABASE_S3_SECR
 
     _media_url = os.environ.get('SUPABASE_MEDIA_URL')
     if _media_url:
-        MEDIA_URL = _media_url
+        MEDIA_URL = _media_url.rstrip('/') + '/'
 
 # --- Security ------------------------------------------------------------
 
@@ -106,6 +108,8 @@ X_FRAME_OPTIONS = 'DENY'
 
 CSRF_TRUSTED_ORIGINS = [
     origin.strip()
-    for origin in os.environ.get('DJANGO_CSRF_TRUSTED_ORIGINS', '').split(',')
+    for origin in os.environ.get(
+        'DJANGO_CSRF_TRUSTED_ORIGINS', 'https://gfr-platform.onrender.com'
+    ).split(',')
     if origin.strip()
 ]
