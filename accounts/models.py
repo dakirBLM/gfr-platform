@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.contrib.auth.models import AbstractUser
 from django.core.validators import RegexValidator
 from django.db import models
@@ -27,6 +28,8 @@ class MembershipStatus(models.TextChoices):
     ACTIVE = 'active', 'Active'
     SUSPENDED = 'suspended', 'Suspended'
 
+
+DEFAULT_AVATAR_PATH = 'img/default-avatar.svg'
 
 orcid_validator = RegexValidator(
     regex=r'^\d{4}-\d{4}-\d{4}-\d{3}[\dX]$',
@@ -113,7 +116,12 @@ class User(AbstractUser):
                 return self.avatar.url
             except ValueError:
                 pass
-        return static('img/default-avatar.svg')
+        try:
+            return static(DEFAULT_AVATAR_PATH)
+        except ValueError:
+            # Hashed-manifest storage raises when collectstatic has not run.
+            # Serve the unhashed path rather than failing the whole page.
+            return f'{settings.STATIC_URL}{DEFAULT_AVATAR_PATH}'
 
     def has_role(self, *roles: str) -> bool:
         return self.role in roles or self.is_superuser
