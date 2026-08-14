@@ -1,12 +1,53 @@
 import json
+from shutil import rmtree
+from tempfile import mkdtemp
 from unittest.mock import MagicMock, patch
 from urllib.error import URLError
 
+from django.contrib.staticfiles.storage import staticfiles_storage
 from django.core.cache import cache
 from django.test import TestCase, override_settings
 from django.urls import reverse
+from django.utils.functional import empty
 
 from accounts.models import User
+
+
+MANIFEST_STORAGES = {
+    'default': {'BACKEND': 'django.core.files.storage.FileSystemStorage'},
+    'staticfiles': {'BACKEND': 'gfr.staticfiles.ResilientManifestStaticFilesStorage'},
+}
+
+
+@override_settings(DEBUG=False, STORAGES=MANIFEST_STORAGES)
+class UncollectedStaticFilesTests(TestCase):
+    """The dashboard must render even when collectstatic has not run."""
+
+    def setUp(self):
+        empty_root = mkdtemp()
+        self.addCleanup(rmtree, empty_root, True)
+        overrides = override_settings(STATIC_ROOT=empty_root)
+        overrides.enable()
+        self.addCleanup(overrides.disable)
+
+        self.user = User.objects.create_user(
+            username='fresh',
+            email='fresh@example.com',
+            password='StrongTestPassword!9',
+        )
+        self.client.force_login(self.user)
+        staticfiles_storage._wrapped = empty
+        self.addCleanup(setattr, staticfiles_storage, '_wrapped', empty)
+
+    def test_dashboard_renders_without_a_staticfiles_manifest(self):
+        response = self.client.get(reverse('dashboard:home'))
+        self.assertEqual(response.status_code, 200)
+
+    def test_missing_asset_falls_back_to_the_unhashed_path(self):
+        self.assertEqual(
+            staticfiles_storage.url('img/sandy-mascot.png'),
+            '/static/img/sandy-mascot.png',
+        )
 
 
 @override_settings(SANDY_FEEDBACK_WEBHOOK_URL='https://example.test/feedback')
