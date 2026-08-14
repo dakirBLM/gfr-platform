@@ -34,7 +34,7 @@
         </div>
         <h1 class="font-serif text-2xl font-semibold">{{ task.title }}</h1>
         <p class="text-sm text-ink-600 mt-1">
-          Assigned to <span class="font-medium text-ink-900">{{ task.assigned_to.display_name }}</span>
+          Assigned to <span class="font-medium text-ink-900">{% if task.assigned_to %}{{ task.assigned_to.display_name }}{% else %}Unassigned{% endif %}</span>
           {% if task.section %} · <span class="font-medium">{{ task.section.title }}</span>{% endif %}
           {% if task.due_date %} · Due <span class="font-medium">{{ task.due_date|date:"N j, Y" }}</span>{% endif %}
         </p>
