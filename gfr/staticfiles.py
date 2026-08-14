@@ -15,7 +15,8 @@ logger = logging.getLogger(__name__)
 
 
 class ResilientManifestStaticFilesStorage(CompressedManifestStaticFilesStorage):
-    manifest_strict = False
+    # manifest_strict stays on: without a manifest the fallback would hash the
+    # file on the fly and point at a hashed copy that was never written.
 
     def url(self, name, force=False):
         try:

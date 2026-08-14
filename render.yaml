@@ -5,7 +5,10 @@ services:
     plan: free
     # fix_sequences is safe to re-run; needed after importing rows with explicit IDs
     # into Postgres (free Render has no shell to run it manually).
-    buildCommand: pip install -r requirements.txt && python manage.py migrate --noinput && python manage.py fix_sequences && python manage.py collectstatic --noinput
+    # --settings is passed explicitly: manage.py defaults to local settings, so
+    # without it the build migrates SQLite and skips static hashing while
+    # gunicorn serves with production settings.
+    buildCommand: pip install -r requirements.txt && python manage.py migrate --noinput --settings=gfr.settings.production && python manage.py fix_sequences --settings=gfr.settings.production && python manage.py collectstatic --noinput --settings=gfr.settings.production
     startCommand: gunicorn gfr.wsgi:application
     envVars:
       - key: DJANGO_SETTINGS_MODULE

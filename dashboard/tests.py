@@ -1,9 +1,12 @@
 import json
-from shutil import rmtree
+from os import makedirs
+from os.path import join
+from shutil import copyfile, rmtree
 from tempfile import mkdtemp
 from unittest.mock import MagicMock, patch
 from urllib.error import URLError
 
+from django.conf import settings
 from django.contrib.staticfiles.storage import staticfiles_storage
 from django.core.cache import cache
 from django.test import TestCase, override_settings
@@ -24,9 +27,16 @@ class UncollectedStaticFilesTests(TestCase):
     """The dashboard must render even when collectstatic has not run."""
 
     def setUp(self):
-        empty_root = mkdtemp()
-        self.addCleanup(rmtree, empty_root, True)
-        overrides = override_settings(STATIC_ROOT=empty_root)
+        # Mirrors a server where collectstatic copied the files but never wrote
+        # a manifest, which is what happens when it runs under local settings.
+        root = mkdtemp()
+        self.addCleanup(rmtree, root, True)
+        makedirs(join(root, 'img'))
+        copyfile(
+            join(settings.BASE_DIR, 'static', 'img', 'sandy-mascot.png'),
+            join(root, 'img', 'sandy-mascot.png'),
+        )
+        overrides = override_settings(STATIC_ROOT=root)
         overrides.enable()
         self.addCleanup(overrides.disable)
 
