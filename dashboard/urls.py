@@ -8,6 +8,7 @@ app_name = 'dashboard'
 
 urlpatterns = [
     path('', views.DashboardHomeView.as_view(), name='home'),
+    path('feedback/sandy/', views.submit_sandy_feedback, name='sandy_feedback'),
 
     path('profile/', views.profile_editor, name='profile'),
     path('profile/info/', views.save_profile_info, name='save_profile_info'),

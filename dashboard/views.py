@@ -1,6 +1,15 @@
+import json
+import logging
+from urllib.error import HTTPError, URLError
+from urllib.parse import urlsplit
+from urllib.request import Request, urlopen
+
+from django.conf import settings
+from django.core.cache import cache
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.views.decorators.http import require_POST
@@ -10,6 +19,77 @@ from accounts.forms import (
     AvatarForm, EducationForm, ProfileForm, PublicationForm,
 )
 from accounts.models import Education, Publication
+
+
+logger = logging.getLogger(__name__)
+
+
+@login_required
+@require_POST
+def submit_sandy_feedback(request):
+    """Validate feedback and forward it to Make without exposing its webhook."""
+    try:
+        rating = int(request.POST.get('rating', ''))
+    except (TypeError, ValueError):
+        rating = 0
+    if rating not in range(1, 6):
+        return JsonResponse({'error': 'Please choose a rating from 1 to 5.'}, status=400)
+
+    bugs = request.POST.get('bugs', '').strip()[:2000]
+    features = request.POST.get('features', '').strip()[:2000]
+    webhook_url = settings.SANDY_FEEDBACK_WEBHOOK_URL
+    if not webhook_url or urlsplit(webhook_url).scheme != 'https':
+        logger.error('SANDY_FEEDBACK_WEBHOOK_URL is not configured.')
+        return JsonResponse({'error': 'Feedback is temporarily unavailable.'}, status=503)
+
+    throttle_key = f'sandy-feedback:{request.user.pk}'
+    if not cache.add(throttle_key, True, timeout=30):
+        return JsonResponse(
+            {'error': 'Please wait a moment before sending another review.'},
+            status=429,
+        )
+
+    payload = json.dumps({
+        'source': 'Sandy feedback widget',
+        'rating': rating,
+        'bugs': bugs,
+        'requested_features': features,
+        'user': {
+            'username': request.user.username,
+            'name': request.user.display_name,
+        },
+    }).encode('utf-8')
+    webhook_request = Request(
+        webhook_url,
+        data=payload,
+        headers={
+            'Content-Type': 'application/json',
+            'User-Agent': 'GFR-Sandy/1.0',
+        },
+        method='POST',
+    )
+    try:
+        with urlopen(webhook_request, timeout=5) as response:
+            if not 200 <= response.status < 300:
+                logger.warning('Make rejected Sandy feedback with status %s.', response.status)
+                return JsonResponse(
+                    {'error': 'We could not send your review. Please try again.'},
+                    status=502,
+                )
+    except HTTPError as error:
+        logger.warning('Make rejected Sandy feedback with status %s.', error.code)
+        return JsonResponse(
+            {'error': 'We could not send your review. Please try again.'},
+            status=502,
+        )
+    except (URLError, TimeoutError, ValueError):
+        logger.warning('Could not connect to Make for Sandy feedback.')
+        return JsonResponse(
+            {'error': 'We could not send your review. Please try again.'},
+            status=502,
+        )
+
+    return JsonResponse({'message': 'Thank you for your review!'})
 
 
 def _dashboard_stats(user):

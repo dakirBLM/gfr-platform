@@ -15,6 +15,7 @@ SECRET_KEY = os.environ.get(
     'DJANGO_SECRET_KEY',
     'django-insecure-local-only-mgicBJHI76sFHSutOSSjASsedcyLvc4AZ0QGbyy5QLs8Pug0w81KDOkZztM_tBFJnoI',
 )
+SANDY_FEEDBACK_WEBHOOK_URL = os.environ.get('SANDY_FEEDBACK_WEBHOOK_URL', '')
 
 INSTALLED_APPS = [
     'django.contrib.admin',

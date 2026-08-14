@@ -16,6 +16,8 @@ services:
         sync: false
       - key: DJANGO_CSRF_TRUSTED_ORIGINS
         sync: false
+      - key: SANDY_FEEDBACK_WEBHOOK_URL
+        sync: false
       - key: DATABASE_URL
         sync: false
       - key: SUPABASE_S3_ACCESS_KEY
