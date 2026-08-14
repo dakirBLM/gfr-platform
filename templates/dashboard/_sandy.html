@@ -1,3 +1,4 @@
+{% load static %}
 <style>
   @keyframes sandy-float {
     0%, 100% { transform: translateY(0) rotate(-1deg); }
@@ -22,11 +23,15 @@
 <aside id="sandy-widget" class="fixed bottom-5 right-5 z-50 flex flex-col items-end gap-3">
   <div id="sandy-prompt"
        class="sandy-arrive max-w-[17rem] rounded-2xl rounded-br-sm border border-brand-100 bg-white px-4 py-3 shadow-xl shadow-brand-900/10">
-    <button type="button" id="sandy-prompt-open" class="text-left"
+    <button type="button" id="sandy-prompt-open" class="flex items-center gap-3 text-left"
             aria-expanded="false" aria-controls="sandy-panel">
-      <span class="block text-xs font-bold text-brand-700">Sandy</span>
-      <span class="mt-0.5 block text-sm leading-snug text-ink-700">
-        Please give us your review here.
+      <img src="{% static 'img/sandy-mascot.png' %}" alt=""
+           class="h-10 w-10 shrink-0 rounded-full border border-brand-100 bg-white object-cover shadow-sm">
+      <span>
+        <span class="block text-xs font-bold text-brand-700">Sandy</span>
+        <span class="mt-0.5 block text-sm leading-snug text-ink-700">
+          Please give us your review here.
+        </span>
       </span>
     </button>
   </div>
@@ -35,9 +40,13 @@
            class="hidden sandy-arrive w-[min(22rem,calc(100vw-2.5rem))] overflow-hidden rounded-2xl border border-ink-100 bg-white shadow-2xl shadow-brand-900/20"
            aria-labelledby="sandy-title">
     <div class="flex items-center justify-between bg-gradient-to-r from-brand-800 to-brand-600 px-5 py-4 text-white">
-      <div>
-        <p class="text-[11px] font-semibold uppercase tracking-[.18em] text-brand-100">Meet Sandy</p>
-        <h2 id="sandy-title" class="font-serif text-lg font-semibold">Help us improve GFR</h2>
+      <div class="flex items-center gap-3">
+        <img src="{% static 'img/sandy-mascot.png' %}" alt="Sandy"
+             class="h-11 w-11 rounded-full border-2 border-white/80 bg-white object-cover shadow-md">
+        <div>
+          <p class="text-[11px] font-semibold uppercase tracking-[.18em] text-brand-100">Meet Sandy</p>
+          <h2 id="sandy-title" class="font-serif text-lg font-semibold">Help us improve GFR</h2>
+        </div>
       </div>
       <button type="button" id="sandy-close"
               class="rounded-full p-1.5 text-brand-100 transition hover:bg-white/10 hover:text-white"
@@ -97,10 +106,11 @@
   </section>
 
   <button type="button" id="sandy-bubble"
-          class="sandy-float relative flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-brand-500 to-brand-800 text-white shadow-xl shadow-brand-800/30 transition hover:scale-105 focus:outline-none focus:ring-4 focus:ring-brand-200"
+          class="sandy-float relative flex h-16 w-16 items-center justify-center rounded-full bg-white p-1 text-white shadow-xl shadow-brand-800/30 transition hover:scale-105 focus:outline-none focus:ring-4 focus:ring-brand-200"
           aria-label="Open Sandy feedback" aria-expanded="false" aria-controls="sandy-panel">
     <span class="sandy-ring absolute inset-0 rounded-full border-2 border-brand-400"></span>
-    <span class="relative font-serif text-2xl font-bold">S</span>
+    <img src="{% static 'img/sandy-mascot.png' %}" alt=""
+         class="relative h-full w-full rounded-full object-cover">
     <span class="absolute -right-0.5 -top-0.5 h-4 w-4 rounded-full border-2 border-white bg-emerald-400"></span>
   </button>
 </aside>
