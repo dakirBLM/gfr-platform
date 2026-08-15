@@ -1,48 +1,121 @@
 {% extends 'base.html' %}
+{% load static %}
 
 {% block title %}About · GFR{% endblock %}
 
 {% block content %}
-<section class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-16 prose-academic">
-  <p class="text-sm font-semibold text-brand-700 uppercase tracking-wider">About</p>
-  <h1 class="mt-2 font-serif text-4xl font-semibold">An integrated global academic ecosystem.</h1>
-  <p class="mt-5 text-lg text-ink-600">
-    The Global Forum for Researchers (GFR) brings together researchers, scientists, and postgraduate
-    students from around the world. It is not merely a publishing site — it is an integrated digital
-    ecosystem that supports research, collaboration, peer-reviewed publishing, and the dissemination
-    of knowledge that contributes to sustainable societal impact.
-  </p>
+{# ---------- Banner ---------- #}
+<section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">
+  <div class="relative h-[320px] sm:h-[400px] rounded-3xl overflow-hidden bg-ink-100">
+    <img src="{% static 'img/marketing/hero-3.jpg' %}" alt="" class="absolute inset-0 w-full h-full object-cover">
+    <div class="absolute inset-0 bg-gradient-to-r from-white via-white/80 to-transparent"></div>
+    <div class="relative h-full flex flex-col justify-center px-7 sm:px-14 max-w-2xl">
+      <p class="text-[11px] font-semibold uppercase tracking-[0.22em] text-teal-700">About GFR</p>
+      <h1 class="mt-4 font-serif text-3xl sm:text-4xl lg:text-5xl font-semibold leading-[1.08] text-brand-900">
+        An Integrated Global<br>Academic Ecosystem.
+      </h1>
+    </div>
+  </div>
+</section>
 
-  <div class="mt-12 grid md:grid-cols-2 gap-8">
-    <article class="bg-white border border-ink-100 rounded-xl p-6">
-      <h2 class="font-serif text-xl font-semibold">Vision</h2>
-      <p class="mt-2 text-ink-600 text-sm leading-relaxed">
+{# ---------- Intro ---------- #}
+<section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14">
+  <div class="grid lg:grid-cols-2 gap-8 lg:gap-14 items-start">
+    <p class="font-serif text-2xl sm:text-3xl font-semibold leading-snug text-brand-900">
+      Not merely a publishing site — a place where research, people, and institutions meet.
+    </p>
+    <p class="text-ink-600 leading-relaxed">
+      The Global Forum for Researchers brings together researchers, scientists, and postgraduate
+      students from around the world. It is an integrated digital ecosystem that supports research,
+      collaboration, peer-reviewed publishing, and the dissemination of knowledge that contributes
+      to sustainable societal impact.
+    </p>
+  </div>
+
+  {# ---------- Vision / Mission ---------- #}
+  <div class="mt-12 grid md:grid-cols-2 gap-5">
+    <article class="rounded-2xl bg-white p-8 shadow-sm shadow-brand-900/5">
+      <span class="inline-flex items-center justify-center w-11 h-11 rounded-xl bg-teal-50 text-teal-700">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.9" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"/></svg>
+      </span>
+      <h2 class="mt-6 font-serif text-xl font-semibold text-brand-900">Vision</h2>
+      <p class="mt-2 text-sm text-ink-600 leading-relaxed">
         To become a leading global platform that advances scientific research and innovation
         while building an integrated international academic community that produces impactful
         knowledge contributing to societal development.
       </p>
     </article>
-    <article class="bg-white border border-ink-100 rounded-xl p-6">
-      <h2 class="font-serif text-xl font-semibold">Mission</h2>
-      <p class="mt-2 text-ink-600 text-sm leading-relaxed">
+    <article class="rounded-2xl bg-brand-900 text-white p-8 shadow-xl shadow-brand-900/20">
+      <span class="inline-flex items-center justify-center w-11 h-11 rounded-xl bg-teal-500 text-brand-900">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.9" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+      </span>
+      <h2 class="mt-6 font-serif text-xl font-semibold">Mission</h2>
+      <p class="mt-2 text-sm text-ink-200/80 leading-relaxed">
         To empower researchers by providing access to scientific knowledge, enabling peer-reviewed
         publishing, supporting collaborative projects, and strengthening cooperation between
         researchers, institutions, and economic sectors.
       </p>
     </article>
   </div>
+</section>
 
-  <h2 class="mt-16 font-serif text-2xl font-semibold">Core values</h2>
-  <ul class="mt-4 grid sm:grid-cols-2 gap-2 text-ink-700">
-    <li class="flex gap-3"><span class="mt-1.5 w-1.5 h-1.5 rounded-full bg-brand-700"></span>Academic integrity</li>
-    <li class="flex gap-3"><span class="mt-1.5 w-1.5 h-1.5 rounded-full bg-brand-700"></span>Objectivity and quality assurance</li>
-    <li class="flex gap-3"><span class="mt-1.5 w-1.5 h-1.5 rounded-full bg-brand-700"></span>Transparency</li>
-    <li class="flex gap-3"><span class="mt-1.5 w-1.5 h-1.5 rounded-full bg-brand-700"></span>International scientific collaboration</li>
-    <li class="flex gap-3"><span class="mt-1.5 w-1.5 h-1.5 rounded-full bg-brand-700"></span>Innovation</li>
-    <li class="flex gap-3"><span class="mt-1.5 w-1.5 h-1.5 rounded-full bg-brand-700"></span>Community service</li>
-  </ul>
+{# ---------- Core values ---------- #}
+<section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-14">
+  <div class="text-center max-w-2xl mx-auto">
+    <h2 class="font-serif text-2xl sm:text-3xl font-semibold text-brand-900">What We Stand For</h2>
+    <p class="mt-2 text-sm text-ink-600">Six principles that shape every review, project, and publication on GFR.</p>
+  </div>
+  <div class="mt-8 grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+    <div class="rounded-2xl bg-white p-6 shadow-sm shadow-brand-900/5 flex items-center gap-4">
+      <span class="w-2.5 h-2.5 rounded-full bg-teal-500 shrink-0"></span>
+      <span class="font-medium text-brand-900">Academic integrity</span>
+    </div>
+    <div class="rounded-2xl bg-white p-6 shadow-sm shadow-brand-900/5 flex items-center gap-4">
+      <span class="w-2.5 h-2.5 rounded-full bg-teal-500 shrink-0"></span>
+      <span class="font-medium text-brand-900">Objectivity and quality assurance</span>
+    </div>
+    <div class="rounded-2xl bg-white p-6 shadow-sm shadow-brand-900/5 flex items-center gap-4">
+      <span class="w-2.5 h-2.5 rounded-full bg-teal-500 shrink-0"></span>
+      <span class="font-medium text-brand-900">Transparency</span>
+    </div>
+    <div class="rounded-2xl bg-white p-6 shadow-sm shadow-brand-900/5 flex items-center gap-4">
+      <span class="w-2.5 h-2.5 rounded-full bg-teal-500 shrink-0"></span>
+      <span class="font-medium text-brand-900">International collaboration</span>
+    </div>
+    <div class="rounded-2xl bg-white p-6 shadow-sm shadow-brand-900/5 flex items-center gap-4">
+      <span class="w-2.5 h-2.5 rounded-full bg-teal-500 shrink-0"></span>
+      <span class="font-medium text-brand-900">Innovation</span>
+    </div>
+    <div class="rounded-2xl bg-white p-6 shadow-sm shadow-brand-900/5 flex items-center gap-4">
+      <span class="w-2.5 h-2.5 rounded-full bg-teal-500 shrink-0"></span>
+      <span class="font-medium text-brand-900">Community service</span>
+    </div>
+  </div>
+</section>
 
-  <h2 class="mt-16 font-serif text-2xl font-semibold">Governance</h2>
-  <p class="mt-2 text-ink-600">GFR operates through six bodies: a Board of Directors, a Scientific Council, a Journal Peer Review Committee, an Editorial Board, a Research Projects Committee, and a Conferences & Workshops Committee.</p>
+{# ---------- Governance ---------- #}
+<section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16">
+  <div class="grid lg:grid-cols-2 gap-8 lg:gap-14 items-center">
+    <div class="rounded-3xl overflow-hidden aspect-[4/3]">
+      <img src="{% static 'img/marketing/card-conferences.jpg' %}" alt="An academic conference in session" loading="lazy"
+           class="w-full h-full object-cover">
+    </div>
+    <div>
+      <p class="text-[11px] font-semibold uppercase tracking-[0.22em] text-teal-700">Governance</p>
+      <h2 class="mt-3 font-serif text-3xl sm:text-4xl font-semibold leading-tight text-brand-900">Six bodies, one standard.</h2>
+      <p class="mt-4 text-ink-600 leading-relaxed">
+        GFR operates through a Board of Directors, a Scientific Council, a Journal Peer Review
+        Committee, an Editorial Board, a Research Projects Committee, and a Conferences &amp;
+        Workshops Committee.
+      </p>
+      <a href="{% if user.is_authenticated %}{% url 'dashboard:home' %}{% else %}{% url 'accounts:register' %}{% endif %}"
+         class="mt-8 inline-flex items-center gap-2 pl-5 pr-4 py-3 rounded-full bg-brand-900 text-white text-sm font-semibold hover:bg-brand-800 transition-colors">
+        {% if user.is_authenticated %}Open your dashboard{% else %}Join the forum{% endif %}
+        <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-teal-500 text-brand-900">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+        </span>
+      </a>
+    </div>
+  </div>
 </section>
 {% endblock %}

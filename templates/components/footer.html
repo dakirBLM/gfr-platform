@@ -1,10 +1,8 @@
+{% load static %}
 <footer class="mt-20 border-t border-ink-100 bg-white">
   <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 grid grid-cols-2 md:grid-cols-4 gap-8 text-sm">
     <div class="col-span-2 md:col-span-1">
-      <div class="flex items-center gap-2 mb-3">
-        <span class="inline-flex items-center justify-center w-8 h-8 rounded-md bg-brand-800 text-white font-serif font-bold">G</span>
-        <span class="font-serif font-semibold text-ink-900">GFR</span>
-      </div>
+      <img src="{% static 'img/gfr-logo-navy.png' %}" alt="GFR" class="h-6 w-auto mb-3">
       <p class="text-ink-600">An international academic social network and research management platform.</p>
     </div>
     <div>

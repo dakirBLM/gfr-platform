@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{% block title %}Global Forum for Researchers{% endblock %}</title>
   <meta name="description" content="An international academic social network and research management platform.">
+  <link rel="icon" type="image/png" href="{% static 'img/gfr-favicon.png' %}">
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -18,9 +19,9 @@
             serif: ['Fraunces', 'ui-serif', 'Georgia'],
           },
           colors: {
-            ink:    { 50:'#f7f7f8', 100:'#eeeef1', 200:'#d8d9df', 600:'#4c4f5a', 700:'#363842', 900:'#15171c' },
-            brand:  { 50:'#eef4ff', 100:'#dbe7fe', 500:'#3b6cf2', 600:'#2c54d4', 700:'#1f3fa4', 800:'#1a3380', 900:'#152858' },
-            accent: { 500:'#c08a2e', 600:'#a07223' },
+            ink:   { 0:'#ffffff', 50:'#f6f8fa', 100:'#eaeef3', 200:'#d5dce5', 300:'#b3bfcd', 400:'#8494a6', 500:'#63748a', 600:'#4a5a6e', 700:'#334153', 800:'#1f2b39', 900:'#101a24' },
+            brand: { 50:'#eef4f9', 100:'#d8e5f0', 200:'#b0c8dc', 300:'#7ea5c3', 400:'#4a7ba1', 500:'#245980', 600:'#134160', 700:'#0b2f47', 800:'#072235', 900:'#051a31', 950:'#030f1d' },
+            teal:  { 50:'#ecfbfa', 100:'#cdf3f2', 200:'#9fe8e7', 300:'#6bd8d7', 400:'#48c7c6', 500:'#39b7b7', 600:'#2c9596', 700:'#277779', 800:'#245e61', 900:'#224e51' },
           },
         },
       },
@@ -29,7 +30,30 @@
   <style>
     body { font-feature-settings: 'cv11','ss01','ss03'; }
     .prose-academic h1, .prose-academic h2, .prose-academic h3 { font-family: 'Fraunces', serif; }
+
+    #site-header {
+      background-color: transparent;
+      border-bottom: 1px solid transparent;
+      transition: background-color .3s ease, border-color .3s ease, box-shadow .3s ease;
+    }
+    #site-header nav { height: 3.25rem; transition: height .3s ease; }
+    #site-header .site-logo { height: 1.5rem; transition: height .3s ease; }
+
+    #site-header.is-stuck {
+      background-color: rgba(255, 255, 255, .85);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border-bottom-color: #eaeef3;
+      box-shadow: 0 1px 12px rgba(5, 26, 49, .04);
+    }
+    #site-header.is-stuck nav { height: 2.875rem; }
+    #site-header.is-stuck .site-logo { height: 1.3rem; }
+
+    @media (prefers-reduced-motion: reduce) {
+      #site-header, #site-header nav, #site-header .site-logo { transition: none; }
+    }
   </style>
+  {% block extra_head %}{% endblock %}
 </head>
 <body class="min-h-screen bg-ink-50 text-ink-900 font-sans antialiased flex flex-col">
   {% include 'components/navbar.html' %}
@@ -38,5 +62,21 @@
     {% block content %}{% endblock %}
   </main>
   {% include 'components/footer.html' %}
+  <script>
+    (function () {
+      var header = document.getElementById('site-header');
+      if (!header) return;
+      var ticking = false;
+
+      function apply() {
+        header.classList.toggle('is-stuck', window.scrollY > 8);
+        ticking = false;
+      }
+      window.addEventListener('scroll', function () {
+        if (!ticking) { ticking = true; window.requestAnimationFrame(apply); }
+      }, { passive: true });
+      apply();
+    })();
+  </script>
 </body>
 </html>

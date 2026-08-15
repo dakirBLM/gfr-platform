@@ -1,4 +1,5 @@
 {% extends 'dashboard_base.html' %}
+{% load static %}
 
 {% block title %}Research Projects · GFR{% endblock %}
 {% block topbar_eyebrow %}Research{% endblock %}
@@ -7,32 +8,43 @@
 {% block content %}
 <div class="max-w-6xl space-y-6">
 
+  {# Banner #}
+  <section class="relative h-44 sm:h-52 rounded-3xl overflow-hidden bg-ink-100">
+    <img src="{% static 'img/marketing/card-projects.jpg' %}" alt="" class="absolute inset-0 w-full h-full object-cover object-[50%_25%]">
+    <div class="absolute inset-0 bg-gradient-to-r from-white via-white/80 to-transparent"></div>
+    <div class="relative h-full flex flex-col justify-center px-7 sm:px-10 max-w-md">
+      <p class="text-[11px] font-semibold uppercase tracking-[0.22em] text-teal-700">Research</p>
+      <h2 class="mt-2 font-serif text-2xl sm:text-3xl font-semibold leading-tight text-brand-900">Research Projects</h2>
+      <p class="mt-2 text-sm text-ink-600">Form a team, split the work, and publish together.</p>
+    </div>
+  </section>
+
   {# Tabs + search + filters #}
-  <section class="bg-white border border-ink-100 rounded-xl p-5">
+  <section class="rounded-2xl bg-white p-5 shadow-sm shadow-brand-900/5">
     <div class="flex flex-col sm:flex-row gap-3">
-      <div class="flex rounded-md border border-ink-200 overflow-hidden text-sm font-medium shrink-0">
+      <div class="flex rounded-full border border-ink-200 overflow-hidden text-sm font-medium shrink-0">
         <a href="?tab=all{% if q %}&q={{ q }}{% endif %}"
-           class="px-4 py-2 {% if tab == 'all' %}bg-brand-700 text-white{% else %}text-ink-700 hover:bg-ink-50{% endif %}">All</a>
+           class="px-4 py-2 {% if tab == 'all' %}bg-brand-900 text-white{% else %}text-ink-700 hover:bg-ink-50{% endif %}">All</a>
         <a href="?tab=mine{% if q %}&q={{ q }}{% endif %}"
-           class="px-4 py-2 border-l border-ink-200 {% if tab == 'mine' %}bg-brand-700 text-white{% else %}text-ink-700 hover:bg-ink-50{% endif %}">My projects</a>
+           class="px-4 py-2 border-l border-ink-200 {% if tab == 'mine' %}bg-brand-900 text-white{% else %}text-ink-700 hover:bg-ink-50{% endif %}">My projects</a>
       </div>
       <form method="get" action="" class="flex flex-1 gap-2">
         <input type="hidden" name="tab" value="{{ tab }}">
         <div class="relative flex-1">
           <svg class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-ink-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-4.35-4.35M11 19a8 8 0 100-16 8 8 0 000 16z"/></svg>
           <input type="search" name="q" value="{{ q }}" placeholder="Search projects…"
-                 class="w-full pl-9 pr-3 py-2 text-sm rounded-md border border-ink-200 focus:outline-none focus:ring-2 focus:ring-brand-500">
+                 class="w-full pl-9 pr-3 py-2 text-sm rounded-full border border-ink-200 focus:outline-none focus:ring-2 focus:ring-teal-400">
         </div>
-        <select name="status" class="text-sm rounded-md border border-ink-200 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-500">
+        <select name="status" class="text-sm rounded-full border border-ink-200 px-4 py-2 focus:outline-none focus:ring-2 focus:ring-teal-400">
           <option value="">All statuses</option>
           {% for val, label in status_choices %}
             <option value="{{ val }}" {% if selected_status == val %}selected{% endif %}>{{ label }}</option>
           {% endfor %}
         </select>
-        <button type="submit" class="px-4 py-2 rounded-md bg-brand-700 text-white text-sm font-semibold hover:bg-brand-800">Search</button>
+        <button type="submit" class="px-5 py-2 rounded-full bg-brand-900 text-white text-sm font-semibold hover:bg-brand-800">Search</button>
       </form>
       {% if user.can_create_project %}
-        <a href="{% url 'dashboard:project_create' %}" class="px-4 py-2 rounded-md bg-ink-900 text-white text-sm font-semibold hover:bg-ink-700 whitespace-nowrap inline-flex items-center gap-1.5">
+        <a href="{% url 'dashboard:project_create' %}" class="px-5 py-2 rounded-full bg-teal-600 text-white text-sm font-semibold hover:bg-teal-700 whitespace-nowrap inline-flex items-center gap-1.5">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
           New project
         </a>
@@ -45,10 +57,10 @@
     <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
       {% for p in projects %}
         <a href="{% url 'dashboard:project_detail' p.slug %}"
-           class="group bg-white border border-ink-100 rounded-xl p-5 flex flex-col gap-3 hover:border-brand-200 hover:shadow-sm transition-all">
+           class="group rounded-2xl bg-white p-5 flex flex-col gap-3 shadow-sm shadow-brand-900/5 transition-shadow hover:shadow-lg hover:shadow-brand-900/10">
 
           <div class="flex items-start justify-between gap-2">
-            <h3 class="font-serif font-semibold text-ink-900 group-hover:text-brand-700 leading-snug">{{ p.title }}</h3>
+            <h3 class="font-serif font-semibold text-brand-900 leading-snug">{{ p.title }}</h3>
             <span class="shrink-0 px-2 py-0.5 text-[11px] rounded-full font-medium
               {% if p.status == 'open' %}bg-emerald-50 text-emerald-700
               {% elif p.status == 'active' %}bg-blue-50 text-blue-700
@@ -98,18 +110,18 @@
     {% if page_obj.paginator.num_pages > 1 %}
       <nav class="flex justify-center gap-2">
         {% if page_obj.has_previous %}
-          <a href="?tab={{ tab }}&q={{ q }}&status={{ selected_status }}&page={{ page_obj.previous_page_number }}" class="px-3 py-1.5 text-sm rounded-md border border-ink-200 hover:bg-ink-50">← Previous</a>
+          <a href="?tab={{ tab }}&q={{ q }}&status={{ selected_status }}&page={{ page_obj.previous_page_number }}" class="px-4 py-1.5 text-sm rounded-full border border-ink-200 hover:bg-ink-50">← Previous</a>
         {% endif %}
         {% if page_obj.has_next %}
-          <a href="?tab={{ tab }}&q={{ q }}&status={{ selected_status }}&page={{ page_obj.next_page_number }}" class="px-3 py-1.5 text-sm rounded-md border border-ink-200 hover:bg-ink-50">Next →</a>
+          <a href="?tab={{ tab }}&q={{ q }}&status={{ selected_status }}&page={{ page_obj.next_page_number }}" class="px-4 py-1.5 text-sm rounded-full border border-ink-200 hover:bg-ink-50">Next →</a>
         {% endif %}
       </nav>
     {% endif %}
   {% else %}
-    <div class="bg-white border border-ink-100 rounded-xl p-16 text-center">
+    <div class="rounded-2xl bg-white p-16 text-center shadow-sm shadow-brand-900/5">
       <p class="text-sm font-medium text-ink-900">No projects found.</p>
       {% if user.can_create_project %}
-        <a href="{% url 'dashboard:project_create' %}" class="mt-4 inline-block px-4 py-2 rounded-md bg-brand-700 text-white text-sm font-semibold">Create first project</a>
+        <a href="{% url 'dashboard:project_create' %}" class="mt-4 inline-block px-5 py-2 rounded-full bg-brand-900 text-white text-sm font-semibold">Create first project</a>
       {% endif %}
     </div>
   {% endif %}

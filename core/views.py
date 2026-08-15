@@ -35,6 +35,60 @@ class HomeView(TemplateView):
                 'icon': 'lifebuoy',
             },
         ]
+        ctx['slides'] = [
+            {
+                'image': 'img/marketing/hero-1.jpg',
+                'eyebrow': 'Welcome to the Global Forum for Researchers',
+                'title': 'Where Research<br>Finds Its<br>Community!',
+            },
+            {
+                'image': 'img/marketing/hero-2.jpg',
+                'eyebrow': 'Publish with confidence',
+                'title': 'Peer Review<br>Done Openly<br>And Fairly!',
+            },
+            {
+                'image': 'img/marketing/hero-3.jpg',
+                'eyebrow': 'Knowledge without borders',
+                'title': 'Read, Share<br>And Build<br>Together!',
+            },
+        ]
+        ctx['highlights'] = [
+            {
+                'image': 'img/marketing/card-journals.jpg',
+                'title': 'Peer-reviewed Journals',
+                'meta': '24 active titles',
+                'badge': 'Open access',
+            },
+            {
+                'image': 'img/marketing/card-projects.jpg',
+                'title': 'Research Projects',
+                'meta': '187 running projects',
+                'badge': 'Collaborate',
+            },
+            {
+                'image': 'img/marketing/card-conferences.jpg',
+                'title': 'Conferences & Workshops',
+                'meta': 'Events year-round',
+                'badge': 'Attend',
+            },
+        ]
+        ctx['steps'] = [
+            {
+                'title': 'Create Your Profile',
+                'body': 'Register once and keep your publications, projects, and reviews under a single academic identity.',
+                'icon': 'user',
+            },
+            {
+                'title': 'Submit Your Work',
+                'body': 'Send a manuscript to any GFR journal and follow it through double-blind review in real time.',
+                'icon': 'upload',
+            },
+            {
+                'title': 'Collaborate & Publish',
+                'body': 'Join projects, manage tasks with your team, and share results with researchers worldwide.',
+                'icon': 'globe',
+            },
+        ]
         return ctx
 
 

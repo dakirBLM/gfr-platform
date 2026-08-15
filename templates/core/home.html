@@ -1,97 +1,286 @@
 {% extends 'base.html' %}
-{% load humanize %}
+{% load humanize static %}
 
 {% block title %}GFR · A global academic network for researchers{% endblock %}
 
+{% block extra_head %}
+<style>
+  .hero-slide {
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity .9s ease, visibility .9s ease;
+  }
+  .hero-slide.is-active { opacity: 1; visibility: visible; }
+
+  /* Slow drift keeps the hero alive without pulling focus from the headline. */
+  .hero-slide img { transform: scale(1.05); }
+  .hero-slide.is-active img { animation: hero-drift 10s ease-out forwards; }
+  @keyframes hero-drift {
+    from { transform: scale(1.05); }
+    to   { transform: scale(1.16); }
+  }
+
+  .hero-slide.is-active .hero-copy > * { animation: hero-rise .7s cubic-bezier(.22,.8,.3,1) backwards; }
+  .hero-slide.is-active .hero-copy > *:nth-child(2) { animation-delay: .08s; }
+  .hero-slide.is-active .hero-copy > *:nth-child(3) { animation-delay: .16s; }
+  @keyframes hero-rise {
+    from { opacity: 0; transform: translateY(18px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .hero-slide, .hero-slide img, .hero-slide.is-active .hero-copy > * { animation: none !important; transition: none; }
+    .hero-slide img { transform: none; }
+  }
+</style>
+{% endblock %}
+
 {% block content %}
-<section class="relative overflow-hidden">
-  <div class="absolute inset-0 bg-gradient-to-br from-brand-900 via-brand-800 to-brand-700"></div>
-  <div class="absolute inset-0 opacity-20" style="background-image: radial-gradient(circle at 20% 30%, white 1px, transparent 1px), radial-gradient(circle at 80% 70%, white 1px, transparent 1px); background-size: 40px 40px;"></div>
-  <div class="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 lg:py-28 text-white">
-    <div class="max-w-3xl">
-      <span class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 border border-white/20 text-xs font-medium tracking-wide uppercase">
-        Global · Peer-reviewed · Collaborative
-      </span>
-      <h1 class="mt-5 font-serif text-4xl sm:text-5xl lg:text-6xl font-semibold leading-tight">
-        Where the world's researchers meet, publish, and build together.
-      </h1>
-      <p class="mt-5 text-lg text-brand-50/90 max-w-2xl">
-        GFR is an international academic ecosystem for scientific research, peer-reviewed publishing,
-        and cross-border collaboration — built to turn knowledge into societal impact.
-      </p>
-      <div class="mt-8 flex flex-wrap gap-3">
-        {% if user.is_authenticated %}
-          <a href="#" class="px-5 py-3 rounded-md bg-white text-brand-800 font-semibold hover:bg-brand-50">Go to dashboard</a>
-        {% else %}
-          <a href="{% url 'accounts:register' %}" class="px-5 py-3 rounded-md bg-white text-brand-800 font-semibold hover:bg-brand-50">Join the forum</a>
-          <a href="{% url 'accounts:login' %}" class="px-5 py-3 rounded-md bg-white/10 border border-white/30 text-white font-semibold hover:bg-white/20">Sign in</a>
-        {% endif %}
+{# ---------- Hero ---------- #}
+<section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">
+  <div id="hero" class="relative h-[480px] sm:h-[560px] rounded-3xl overflow-hidden bg-ink-100">
+    {% for s in slides %}
+      <article class="hero-slide absolute inset-0{% if forloop.first %} is-active{% endif %}" data-slide="{{ forloop.counter0 }}"{% if not forloop.first %} aria-hidden="true"{% endif %}>
+        <img src="{% static s.image %}" alt="" class="absolute inset-0 w-full h-full object-cover">
+        <div class="absolute inset-0 bg-gradient-to-r from-white via-white/80 to-transparent"></div>
+        <div class="hero-copy relative h-full flex flex-col justify-center px-7 sm:px-14 max-w-2xl">
+          <p class="text-[11px] font-semibold uppercase tracking-[0.22em] text-teal-700">{{ s.eyebrow }}</p>
+          <h1 class="mt-4 font-serif text-4xl sm:text-5xl lg:text-[3.5rem] font-semibold leading-[1.06] text-brand-900">{{ s.title|safe }}</h1>
+          <div class="mt-8 flex flex-wrap items-center gap-3">
+            {% if user.is_authenticated %}
+              <a href="{% url 'dashboard:home' %}" class="inline-flex items-center gap-2 pl-5 pr-4 py-3 rounded-full bg-brand-900 text-white text-sm font-semibold hover:bg-brand-800 transition-colors">
+                Go to dashboard
+                <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-teal-500 text-brand-900">
+                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+                </span>
+              </a>
+            {% else %}
+              <a href="{% url 'accounts:register' %}" class="inline-flex items-center gap-2 pl-5 pr-4 py-3 rounded-full bg-brand-900 text-white text-sm font-semibold hover:bg-brand-800 transition-colors">
+                Join the forum
+                <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-teal-500 text-brand-900">
+                  <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+                </span>
+              </a>
+              <a href="{% url 'accounts:login' %}" class="px-5 py-3 rounded-full border border-brand-900/15 text-brand-900 text-sm font-semibold hover:bg-white/70 transition-colors">Sign in</a>
+            {% endif %}
+          </div>
+        </div>
+      </article>
+    {% endfor %}
+
+    {# Slide controls #}
+    <div class="absolute left-7 sm:left-14 bottom-8 flex items-center gap-2 z-10">
+      <button type="button" data-hero-prev aria-label="Previous slide"
+              class="w-9 h-9 rounded-full bg-white/85 backdrop-blur border border-brand-900/10 text-brand-900 flex items-center justify-center hover:bg-white transition-colors">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
+      </button>
+      <button type="button" data-hero-next aria-label="Next slide"
+              class="w-9 h-9 rounded-full bg-white/85 backdrop-blur border border-brand-900/10 text-brand-900 flex items-center justify-center hover:bg-white transition-colors">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+      </button>
+      <div class="ml-3 flex items-center gap-1.5" role="tablist" aria-label="Choose slide">
+        {% for s in slides %}
+          <button type="button" data-hero-dot="{{ forloop.counter0 }}" role="tab" aria-label="Slide {{ forloop.counter }}"
+                  class="h-1.5 rounded-full transition-all duration-300 {% if forloop.first %}w-6 bg-brand-900{% else %}w-1.5 bg-brand-900/25{% endif %}"></button>
+        {% endfor %}
       </div>
     </div>
 
-    <dl class="mt-14 grid grid-cols-2 sm:grid-cols-4 gap-6 max-w-3xl">
-      <div><dt class="text-xs uppercase tracking-wider text-brand-100/80">Researchers</dt><dd class="mt-1 font-serif text-3xl font-semibold">{{ stats.researchers|intcomma }}</dd></div>
-      <div><dt class="text-xs uppercase tracking-wider text-brand-100/80">Institutions</dt><dd class="mt-1 font-serif text-3xl font-semibold">{{ stats.institutions|intcomma }}</dd></div>
-      <div><dt class="text-xs uppercase tracking-wider text-brand-100/80">Journals</dt><dd class="mt-1 font-serif text-3xl font-semibold">{{ stats.journals|intcomma }}</dd></div>
-      <div><dt class="text-xs uppercase tracking-wider text-brand-100/80">Active projects</dt><dd class="mt-1 font-serif text-3xl font-semibold">{{ stats.projects|intcomma }}</dd></div>
-    </dl>
+    {# Floating stat card #}
+    <div class="hidden lg:flex absolute right-8 bottom-8 items-center gap-5 rounded-2xl bg-white/90 backdrop-blur px-6 py-4 shadow-lg shadow-brand-900/5 z-10">
+      <div>
+        <p class="text-[10px] uppercase tracking-wider text-ink-500">Researchers</p>
+        <p class="font-serif text-2xl font-semibold text-brand-900">{{ stats.researchers|intcomma }}</p>
+      </div>
+      <span class="w-px h-9 bg-ink-200"></span>
+      <div>
+        <p class="text-[10px] uppercase tracking-wider text-ink-500">Institutions</p>
+        <p class="font-serif text-2xl font-semibold text-brand-900">{{ stats.institutions|intcomma }}</p>
+      </div>
+      <span class="w-px h-9 bg-ink-200"></span>
+      <div>
+        <p class="text-[10px] uppercase tracking-wider text-ink-500">Journals</p>
+        <p class="font-serif text-2xl font-semibold text-brand-900">{{ stats.journals|intcomma }}</p>
+      </div>
+    </div>
   </div>
 </section>
 
-<section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 lg:py-24">
-  <div class="max-w-2xl">
-    <p class="text-sm font-semibold text-brand-700 uppercase tracking-wider">Why GFR</p>
-    <h2 class="mt-2 font-serif text-3xl lg:text-4xl font-semibold">An integrated platform, not a publishing site.</h2>
-    <p class="mt-4 text-ink-600 text-lg">Four connected pillars — publishing, collaboration, events, and funding — sharing one academic identity per researcher.</p>
+{# ---------- Trust strip ---------- #}
+<section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
+  <div class="flex flex-wrap items-center justify-center gap-x-10 gap-y-4 text-ink-400">
+    <span class="text-xs uppercase tracking-[0.18em] text-ink-500">Trusted by researchers at</span>
+    <span class="font-serif text-lg font-semibold">Cairo University</span>
+    <span class="font-serif text-lg font-semibold">Max Planck</span>
+    <span class="font-serif text-lg font-semibold">Tsinghua</span>
+    <span class="font-serif text-lg font-semibold">KAUST</span>
+    <span class="font-serif text-lg font-semibold">Univ. of Tokyo</span>
+  </div>
+</section>
+
+{# ---------- Highlights ---------- #}
+<section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-4">
+  <div class="flex items-end justify-between gap-6">
+    <div>
+      <h2 class="font-serif text-2xl sm:text-3xl font-semibold text-brand-900">Explore the Forum</h2>
+      <p class="mt-1 text-sm text-ink-600">Everything a researcher needs, in one academic identity.</p>
+    </div>
+    <a href="{% url 'core:about' %}" class="hidden sm:inline-flex items-center justify-center w-10 h-10 rounded-full bg-brand-900 text-white hover:bg-brand-800 transition-colors shrink-0" aria-label="Learn more about GFR">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+    </a>
   </div>
 
-  <div class="mt-12 grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
-    {% for p in pillars %}
-      <article class="bg-white rounded-xl border border-ink-100 p-6 hover:shadow-md transition-shadow">
-        <div class="w-10 h-10 rounded-lg bg-brand-50 text-brand-700 flex items-center justify-center mb-4">
-          {% if p.icon == 'book' %}<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 5a2 2 0 012-2h6v18H5a2 2 0 01-2-2V5zm10-2h6a2 2 0 012 2v14a2 2 0 01-2 2h-6V3z"/></svg>
-          {% elif p.icon == 'users' %}<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20v-1a4 4 0 00-4-4H7a4 4 0 00-4 4v1m6-9a4 4 0 100-8 4 4 0 000 8zm10 9v-1a4 4 0 00-3-3.87M14 3.13a4 4 0 010 7.75"/></svg>
-          {% elif p.icon == 'calendar' %}<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8 2v3M16 2v3M3 9h18M5 5h14a2 2 0 012 2v12a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2z"/></svg>
-          {% else %}<svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 21a9 9 0 100-18 9 9 0 000 18zm-7-7l3-3m8 8l3-3M5 10l3 3m8-8l3 3"/></svg>{% endif %}
+  <div class="mt-6 grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
+    {% for h in highlights %}
+      <article class="group rounded-2xl bg-white p-3 shadow-sm shadow-brand-900/5 transition-shadow hover:shadow-lg hover:shadow-brand-900/10">
+        <div class="relative rounded-xl overflow-hidden aspect-[4/3]">
+          <img src="{% static h.image %}" alt="{{ h.title }}" loading="lazy"
+               class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105">
+          <span class="absolute top-3 left-3 px-2.5 py-1 rounded-full bg-white/90 backdrop-blur text-[11px] font-semibold text-brand-900">{{ h.badge }}</span>
         </div>
-        <h3 class="font-serif text-lg font-semibold">{{ p.title }}</h3>
-        <p class="mt-2 text-sm text-ink-600 leading-relaxed">{{ p.body }}</p>
+        <div class="flex items-center justify-between gap-3 px-2 pt-3 pb-1">
+          <div class="min-w-0">
+            <h3 class="font-semibold text-brand-900 truncate">{{ h.title }}</h3>
+            <p class="mt-0.5 text-xs text-ink-500">{{ h.meta }}</p>
+          </div>
+          <span class="shrink-0 inline-flex items-center px-3 py-1 rounded-full bg-teal-50 text-teal-700 text-xs font-semibold">Open</span>
+        </div>
       </article>
     {% endfor %}
   </div>
 </section>
 
-<section class="bg-white border-y border-ink-100">
-  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 lg:py-24 grid lg:grid-cols-2 gap-12">
-    <div>
-      <p class="text-sm font-semibold text-brand-700 uppercase tracking-wider">Vision</p>
-      <h3 class="mt-2 font-serif text-3xl font-semibold">A leading global platform for science and innovation.</h3>
-      <p class="mt-4 text-ink-600">Building an integrated international academic community whose work contributes directly to societal development.</p>
-    </div>
-    <div>
-      <p class="text-sm font-semibold text-brand-700 uppercase tracking-wider">Mission</p>
-      <ul class="mt-4 space-y-3 text-ink-700">
-        <li class="flex gap-3"><span class="mt-1.5 w-1.5 h-1.5 rounded-full bg-brand-700"></span>Open access to scientific knowledge</li>
-        <li class="flex gap-3"><span class="mt-1.5 w-1.5 h-1.5 rounded-full bg-brand-700"></span>Peer-reviewed academic publishing</li>
-        <li class="flex gap-3"><span class="mt-1.5 w-1.5 h-1.5 rounded-full bg-brand-700"></span>Support for collaborative research projects</li>
-        <li class="flex gap-3"><span class="mt-1.5 w-1.5 h-1.5 rounded-full bg-brand-700"></span>Stronger ties between researchers and institutions</li>
-        <li class="flex gap-3"><span class="mt-1.5 w-1.5 h-1.5 rounded-full bg-brand-700"></span>Research-driven societal advancement</li>
-      </ul>
-    </div>
+{# ---------- Steps ---------- #}
+<section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 lg:py-20">
+  <div class="text-center max-w-2xl mx-auto">
+    <h2 class="font-serif text-2xl sm:text-3xl font-semibold text-brand-900">Publishing And Collaboration, Made Simple!</h2>
+    <p class="mt-2 text-sm text-ink-600">From your first profile to your next publication — three steps, one platform.</p>
+  </div>
+
+  <div class="mt-10 grid md:grid-cols-3 gap-5 items-stretch">
+    {% for step in steps %}
+      {% if forloop.counter == 2 %}
+        {# Middle card carries the brand colour, mirroring the reference layout. #}
+        <article class="rounded-2xl bg-brand-900 text-white p-7 md:-mt-4 md:mb-[-1rem] shadow-xl shadow-brand-900/20 flex flex-col">
+          <span class="inline-flex items-center justify-center w-11 h-11 rounded-xl bg-teal-500 text-brand-900">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.9" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 16V4m0 0L8 8m4-4l4 4M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2"/></svg>
+          </span>
+          <h3 class="mt-6 font-serif text-xl font-semibold">{{ step.title }}</h3>
+          <p class="mt-2 text-sm text-ink-200/80 leading-relaxed flex-1">{{ step.body }}</p>
+          <a href="{% url 'accounts:register' %}" class="mt-6 inline-flex items-center gap-2 text-sm font-semibold text-teal-300 hover:text-teal-200">
+            Learn more
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+          </a>
+        </article>
+      {% else %}
+        <article class="rounded-2xl bg-white p-7 shadow-sm shadow-brand-900/5 flex flex-col">
+          <span class="inline-flex items-center justify-center w-11 h-11 rounded-xl bg-teal-50 text-teal-700">
+            {% if step.icon == 'user' %}
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.9" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 12a4 4 0 100-8 4 4 0 000 8zM4 21v-1a4 4 0 014-4h8a4 4 0 014 4v1"/></svg>
+            {% else %}
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.9" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 21a9 9 0 100-18 9 9 0 000 18zM3.6 9h16.8M3.6 15h16.8M12 3a15 15 0 010 18a15 15 0 010-18z"/></svg>
+            {% endif %}
+          </span>
+          <h3 class="mt-6 font-serif text-xl font-semibold text-brand-900">{{ step.title }}</h3>
+          <p class="mt-2 text-sm text-ink-600 leading-relaxed flex-1">{{ step.body }}</p>
+        </article>
+      {% endif %}
+    {% endfor %}
   </div>
 </section>
 
-<section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 lg:py-24">
-  <div class="rounded-2xl bg-gradient-to-br from-brand-800 to-brand-700 text-white p-10 lg:p-14 flex flex-col lg:flex-row items-start lg:items-center gap-6 justify-between">
-    <div>
-      <h3 class="font-serif text-3xl font-semibold">Ready to publish, collaborate, or review?</h3>
-      <p class="mt-2 text-brand-50/90">Create your academic profile in minutes — your research, projects, and reviews live in one place.</p>
+{# ---------- Split feature ---------- #}
+<section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 lg:pb-20">
+  <div class="grid lg:grid-cols-2 gap-8 lg:gap-14 items-center">
+    <div class="rounded-3xl overflow-hidden aspect-[4/5] max-h-[520px]">
+      <img src="{% static 'img/marketing/split-researcher.jpg' %}" alt="A researcher in her laboratory" loading="lazy"
+           class="w-full h-full object-cover">
     </div>
-    {% if not user.is_authenticated %}
-      <a href="{% url 'accounts:register' %}" class="px-6 py-3 rounded-md bg-white text-brand-800 font-semibold hover:bg-brand-50 whitespace-nowrap">Create your profile</a>
-    {% else %}
-      <a href="#" class="px-6 py-3 rounded-md bg-white text-brand-800 font-semibold hover:bg-brand-50 whitespace-nowrap">Open dashboard</a>
-    {% endif %}
+    <div>
+      <p class="text-sm text-ink-500 leading-relaxed max-w-md">
+        Publishing is only the beginning. On GFR your profile, your projects, and your peer reviews
+        all live together — so your work keeps compounding.
+      </p>
+      <h2 class="mt-6 font-serif text-4xl sm:text-5xl lg:text-6xl font-semibold leading-[1.03] text-brand-900 uppercase">
+        Advance<br>Knowledge<br>With <span class="text-teal-600">GFR</span>
+      </h2>
+      <div class="mt-10 flex flex-wrap items-center gap-8">
+        <div>
+          <p class="font-serif text-3xl font-semibold text-teal-600">{{ stats.projects|intcomma }}</p>
+          <p class="text-xs uppercase tracking-wider text-ink-500 mt-0.5">Active projects</p>
+        </div>
+        <div>
+          <p class="font-serif text-3xl font-semibold text-teal-600">{{ stats.journals|intcomma }}</p>
+          <p class="text-xs uppercase tracking-wider text-ink-500 mt-0.5">Peer-reviewed journals</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {# ---------- CTA band ---------- #}
+  <div class="mt-10 rounded-2xl bg-white shadow-sm shadow-brand-900/5 p-4 sm:p-5 flex flex-col sm:flex-row items-center gap-4 justify-between">
+    <div class="flex items-center gap-4 px-2">
+      <p class="font-serif text-2xl font-semibold text-teal-600 whitespace-nowrap">Free</p>
+      <p class="text-xs text-ink-500 leading-snug">To join, publish,<br>and collaborate</p>
+    </div>
+    <a href="{% if user.is_authenticated %}{% url 'dashboard:home' %}{% else %}{% url 'accounts:register' %}{% endif %}"
+       class="w-full sm:w-auto sm:min-w-[320px] inline-flex items-center justify-center gap-3 px-8 py-4 rounded-xl bg-brand-900 text-white font-semibold hover:bg-brand-800 transition-colors">
+      {% if user.is_authenticated %}Open your dashboard{% else %}Create your profile{% endif %}
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17 8l4 4m0 0l-4 4m4-4H3"/></svg>
+    </a>
   </div>
 </section>
+
+<script>
+  (function () {
+    var hero = document.getElementById('hero');
+    if (!hero) return;
+
+    var slides = Array.prototype.slice.call(hero.querySelectorAll('.hero-slide'));
+    var dots = Array.prototype.slice.call(hero.querySelectorAll('[data-hero-dot]'));
+    if (slides.length < 2) return;
+
+    var current = 0;
+    var timer = null;
+    var INTERVAL = 6500;
+
+    function show(next) {
+      next = (next + slides.length) % slides.length;
+      if (next === current) return;
+
+      slides[current].classList.remove('is-active');
+      slides[current].setAttribute('aria-hidden', 'true');
+      slides[next].classList.add('is-active');
+      slides[next].removeAttribute('aria-hidden');
+
+      dots.forEach(function (dot, i) {
+        dot.className = dot.className.replace(/w-6 bg-brand-900|w-1\.5 bg-brand-900\/25/, i === next ? 'w-6 bg-brand-900' : 'w-1.5 bg-brand-900/25');
+      });
+
+      current = next;
+    }
+
+    function start() {
+      stop();
+      timer = window.setInterval(function () { show(current + 1); }, INTERVAL);
+    }
+    function stop() {
+      if (timer) { window.clearInterval(timer); timer = null; }
+    }
+
+    hero.querySelector('[data-hero-next]').addEventListener('click', function () { show(current + 1); start(); });
+    hero.querySelector('[data-hero-prev]').addEventListener('click', function () { show(current - 1); start(); });
+    dots.forEach(function (dot, i) {
+      dot.addEventListener('click', function () { show(i); start(); });
+    });
+
+    hero.addEventListener('mouseenter', stop);
+    hero.addEventListener('mouseleave', start);
+    document.addEventListener('visibilitychange', function () {
+      document.hidden ? stop() : start();
+    });
+
+    if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches) start();
+  })();
+</script>
 {% endblock %}
