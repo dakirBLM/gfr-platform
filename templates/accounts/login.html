@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load static %}
 
 {% block title %}Sign in · GFR{% endblock %}
 
@@ -24,8 +25,11 @@
       </label>
       <label class="block">
         <span class="text-sm font-medium text-ink-700">Password</span>
-        <input type="password" name="password" required
-               class="mt-1 w-full rounded-md border border-ink-200 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500">
+        <span class="relative block">
+          <input type="password" name="password" id="id_password" required
+                 class="mt-1 w-full rounded-md border border-ink-200 px-3 py-2 pr-10 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500">
+          {% include 'accounts/_password_toggle_button.html' with target_id='id_password' %}
+        </span>
       </label>
 
       <input type="hidden" name="next" value="{{ next }}">
@@ -37,4 +41,8 @@
     </p>
   </div>
 </section>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/password-toggle.js' %}"></script>
 {% endblock %}

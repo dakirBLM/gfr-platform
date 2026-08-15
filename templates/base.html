@@ -52,6 +52,9 @@
     @media (prefers-reduced-motion: reduce) {
       #site-header, #site-header nav, #site-header .site-logo { transition: none; }
     }
+
+    .password-toggle-btn.is-visible .eye-open { display: none; }
+    .password-toggle-btn.is-visible .eye-closed { display: block; }
   </style>
   {% block extra_head %}{% endblock %}
 </head>
@@ -78,5 +81,6 @@
       apply();
     })();
   </script>
+  {% block extra_js %}{% endblock %}
 </body>
 </html>
