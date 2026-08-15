@@ -1,9 +1,9 @@
-{% url 'core:home' as home_url %}
-<header class="sticky top-0 z-30 bg-white/90 backdrop-blur border-b border-ink-100">
-  <nav class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
-    <a href="{{ home_url }}" class="flex items-center gap-2 group">
-      <span class="inline-flex items-center justify-center w-9 h-9 rounded-lg bg-brand-800 text-white font-serif text-lg font-bold">G</span>
-      <span class="font-serif text-lg font-semibold tracking-tight text-ink-900">GFR<span class="hidden sm:inline text-ink-600 font-sans font-normal text-sm ml-2">Global Forum for Researchers</span></span>
+{% load static %}{% url 'core:home' as home_url %}
+{# Transparent while at the top of the page; picks up a surface once the user scrolls. #}
+<header id="site-header" class="sticky top-0 z-30">
+  <nav class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between">
+    <a href="{{ home_url }}" class="flex items-center">
+      <img src="{% static 'img/gfr-logo-navy.png' %}" alt="GFR" class="site-logo w-auto">
     </a>
 
     <div class="hidden md:flex items-center gap-1 text-sm font-medium text-ink-700">
@@ -17,13 +17,13 @@
 
     <div class="flex items-center gap-2">
       {% if user.is_authenticated %}
-        <a href="{% url 'dashboard:home' %}" class="text-sm px-3 py-1.5 rounded-md bg-brand-700 text-white hover:bg-brand-800 inline-flex items-center gap-1.5">
+        <a href="{% url 'dashboard:home' %}" class="text-sm px-3 py-1.5 rounded-md bg-teal-700 text-white hover:bg-teal-800 inline-flex items-center gap-1.5">
           Open dashboard
           <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
         </a>
       {% else %}
         <a href="{% url 'accounts:login' %}" class="text-sm px-3 py-1.5 rounded-md text-ink-700 hover:bg-ink-100">Sign in</a>
-        <a href="{% url 'accounts:register' %}" class="text-sm px-3 py-1.5 rounded-md bg-brand-700 text-white hover:bg-brand-800">Join GFR</a>
+        <a href="{% url 'accounts:register' %}" class="text-sm px-3 py-1.5 rounded-md bg-teal-700 text-white hover:bg-teal-800">Join GFR</a>
       {% endif %}
     </div>
   </nav>
