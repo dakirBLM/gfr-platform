@@ -1,10 +1,11 @@
 import json
+from io import BytesIO
 from os import makedirs
 from os.path import join
 from shutil import copyfile, rmtree
 from tempfile import mkdtemp
 from unittest.mock import MagicMock, patch
-from urllib.error import URLError
+from urllib.error import HTTPError, URLError
 
 from django.conf import settings
 from django.contrib.staticfiles.storage import staticfiles_storage
@@ -127,6 +128,17 @@ class SandyFeedbackTests(TestCase):
         self.assertIn('/accounts/login/', response['Location'])
 
 
+def _http_error(code, payload):
+    """An HTTPError carrying a Gemini-shaped JSON error body."""
+    return HTTPError(
+        url='https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent',
+        code=code,
+        msg='error',
+        hdrs=None,
+        fp=BytesIO(json.dumps(payload).encode('utf-8')),
+    )
+
+
 @override_settings(GEMINI_API_KEY='test-gemini-key', GEMINI_MODEL='gemini-2.0-flash')
 class SandyChatTests(TestCase):
     def setUp(self):
@@ -177,7 +189,9 @@ class SandyChatTests(TestCase):
         self.assertEqual(response.json()['reply'], 'Researchers can submit from Journals.')
         request = mock_urlopen.call_args.args[0]
         self.assertIn('generativelanguage.googleapis.com', request.full_url)
-        self.assertIn('key=test-gemini-key', request.full_url)
+        # The key must travel as a header so it cannot leak through URLs or logs.
+        self.assertNotIn('test-gemini-key', request.full_url)
+        self.assertEqual(request.headers['X-goog-api-key'], 'test-gemini-key')
         body = json.loads(request.data)
         system_text = body['systemInstruction']['parts'][0]['text']
         self.assertIn('Global Forum for Researchers', system_text)
@@ -191,6 +205,44 @@ class SandyChatTests(TestCase):
     def test_upstream_failure_returns_service_error(self, _mock_urlopen):
         response = self._post({'message': 'Hello'})
         self.assertEqual(response.status_code, 502)
+
+    @patch('dashboard.views.urlopen')
+    def test_rejected_key_is_logged_with_the_reason_from_gemini(self, mock_urlopen):
+        mock_urlopen.side_effect = _http_error(400, {
+            'error': {'message': 'API key not valid. Please pass a valid API key.'},
+        })
+
+        with self.assertLogs('dashboard.views', level='WARNING') as logs:
+            response = self._post({'message': 'Hello'})
+
+        self.assertEqual(response.status_code, 502)
+        self.assertIn('API key not valid', '\n'.join(logs.output))
+
+    @patch('dashboard.views.urlopen')
+    def test_exhausted_quota_asks_the_user_to_retry_later(self, mock_urlopen):
+        mock_urlopen.side_effect = _http_error(429, {
+            'error': {'message': 'Quota exceeded for quota metric.'},
+        })
+
+        with self.assertLogs('dashboard.views', level='WARNING'):
+            response = self._post({'message': 'Hello'})
+
+        self.assertEqual(response.status_code, 429)
+        self.assertIn('try again in a minute', response.json()['error'])
+
+    @patch('dashboard.views.urlopen')
+    def test_blocked_prompt_is_logged_with_its_reason(self, mock_urlopen):
+        upstream = MagicMock()
+        upstream.read.return_value = json.dumps({
+            'promptFeedback': {'blockReason': 'SAFETY'},
+        }).encode('utf-8')
+        mock_urlopen.return_value.__enter__.return_value = upstream
+
+        with self.assertLogs('dashboard.views', level='WARNING') as logs:
+            response = self._post({'message': 'Hello'})
+
+        self.assertEqual(response.status_code, 502)
+        self.assertIn('SAFETY', '\n'.join(logs.output))
 
     def test_login_is_required(self):
         self.client.logout()
