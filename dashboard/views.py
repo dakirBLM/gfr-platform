@@ -25,6 +25,12 @@ logger = logging.getLogger(__name__)
 
 MAX_SANDY_CHAT_MESSAGE = 1500
 MAX_SANDY_CHAT_HISTORY = 12
+GEMINI_DEFAULT_MODEL = 'gemini-3.6-flash'
+# Gemini 3 counts its own reasoning against maxOutputTokens, so a budget sized
+# for the visible answer alone gets spent thinking and returns empty text with
+# finishReason MAX_TOKENS. Sandy also asks for minimal thinking: the questions
+# are support questions, and deeper reasoning only adds latency and cost.
+MAX_SANDY_CHAT_OUTPUT_TOKENS = 2048
 
 
 class GeminiUnavailable(Exception):
@@ -53,7 +59,7 @@ def _gemini_error_detail(error):
 def _gemini_generate(system_prompt: str, history: list, user_message: str) -> str:
     """Call Gemini generateContent and return the assistant text."""
     api_key = settings.GEMINI_API_KEY
-    model = getattr(settings, 'GEMINI_MODEL', 'gemini-2.0-flash') or 'gemini-2.0-flash'
+    model = getattr(settings, 'GEMINI_MODEL', GEMINI_DEFAULT_MODEL) or GEMINI_DEFAULT_MODEL
     if not api_key:
         raise GeminiUnavailable('GEMINI_API_KEY is not configured.')
 
@@ -70,8 +76,8 @@ def _gemini_generate(system_prompt: str, history: list, user_message: str) -> st
         'systemInstruction': {'parts': [{'text': system_prompt}]},
         'contents': contents,
         'generationConfig': {
-            'temperature': 0.6,
-            'maxOutputTokens': 512,
+            'thinkingConfig': {'thinkingLevel': 'minimal'},
+            'maxOutputTokens': MAX_SANDY_CHAT_OUTPUT_TOKENS,
         },
     }).encode('utf-8')
     # The key travels as a header so it never lands in a URL, log line, or traceback.
