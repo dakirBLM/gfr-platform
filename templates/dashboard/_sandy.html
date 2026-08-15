@@ -18,9 +18,13 @@
   @media (prefers-reduced-motion: reduce) {
     .sandy-float, .sandy-ring, .sandy-arrive { animation: none; }
   }
+  #sandy-chat-log::-webkit-scrollbar { width: 6px; }
+  #sandy-chat-log::-webkit-scrollbar-thumb { background: #d5dce5; border-radius: 999px; }
 </style>
 
-<aside id="sandy-widget" class="fixed bottom-5 right-5 z-50 flex flex-col items-end gap-3">
+<aside id="sandy-widget" class="fixed bottom-5 right-5 z-50 flex flex-col items-end gap-3"
+       data-chat-url="{% url 'dashboard:sandy_chat' %}"
+       data-user-name="{{ user.display_name|escape }}">
   <div id="sandy-prompt"
        class="sandy-arrive max-w-[17rem] rounded-2xl rounded-br-sm border border-brand-100 bg-white px-4 py-3 shadow-xl shadow-brand-900/10">
     <button type="button" id="sandy-prompt-open" class="flex items-center gap-3 text-left"
@@ -30,7 +34,7 @@
       <span>
         <span class="block text-xs font-bold text-brand-700">Sandy</span>
         <span class="mt-0.5 block text-sm leading-snug text-ink-700">
-          Please give us your review here.
+          Need a hand or a review? Tap to chat with me.
         </span>
       </span>
     </button>
@@ -45,19 +49,72 @@
              class="h-11 w-11 rounded-full border-2 border-white/80 bg-white object-cover shadow-md">
         <div>
           <p class="text-[11px] font-semibold uppercase tracking-[.18em] text-brand-100">Meet Sandy</p>
-          <h2 id="sandy-title" class="font-serif text-lg font-semibold">Help us improve GFR</h2>
+          <h2 id="sandy-title" class="font-serif text-lg font-semibold">Your GFR guide</h2>
         </div>
       </div>
       <button type="button" id="sandy-close"
               class="rounded-full p-1.5 text-brand-100 transition hover:bg-white/10 hover:text-white"
-              aria-label="Close feedback">
+              aria-label="Close Sandy">
         <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
           <path stroke-linecap="round" d="M6 6l12 12M18 6L6 18"/>
         </svg>
       </button>
     </div>
 
-    <form id="sandy-form" action="{% url 'dashboard:sandy_feedback' %}" method="post" class="space-y-5 p-5">
+    <div id="sandy-mode-picker" class="space-y-3 p-5">
+      <p class="text-sm text-ink-600">How can I help you today?</p>
+      <button type="button" data-sandy-mode="chat"
+              class="flex w-full items-center gap-3 rounded-xl border border-ink-100 bg-ink-50 px-4 py-3 text-left transition hover:border-brand-300 hover:bg-brand-50">
+        <span class="flex h-10 w-10 items-center justify-center rounded-full bg-brand-700 text-white">
+          <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M8 10h8M8 14h5M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+          </svg>
+        </span>
+        <span>
+          <span class="block text-sm font-semibold text-ink-900">Chat with Sandy</span>
+          <span class="block text-xs text-ink-600">Ask how GFR works for your role.</span>
+        </span>
+      </button>
+      <button type="button" data-sandy-mode="review"
+              class="flex w-full items-center gap-3 rounded-xl border border-ink-100 bg-ink-50 px-4 py-3 text-left transition hover:border-brand-300 hover:bg-brand-50">
+        <span class="flex h-10 w-10 items-center justify-center rounded-full bg-teal-600 text-white">
+          <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M11.05 2.93l1.08 2.18 2.41.35-1.74 1.7.41 2.4-2.16-1.14-2.16 1.14.41-2.4-1.74-1.7 2.41-.35 1.08-2.18zM5 14h14M5 18h10"/>
+          </svg>
+        </span>
+        <span>
+          <span class="block text-sm font-semibold text-ink-900">Leave a review</span>
+          <span class="block text-xs text-ink-600">Rate GFR and share bugs or ideas.</span>
+        </span>
+      </button>
+    </div>
+
+    <div id="sandy-tabs" class="hidden border-b border-ink-100 px-5">
+      <div class="flex gap-1" role="tablist" aria-label="Sandy modes">
+        <button type="button" role="tab" data-sandy-tab="chat" aria-selected="false"
+                class="px-3 py-2.5 text-sm font-semibold text-ink-500 border-b-2 border-transparent">Chat</button>
+        <button type="button" role="tab" data-sandy-tab="review" aria-selected="false"
+                class="px-3 py-2.5 text-sm font-semibold text-ink-500 border-b-2 border-transparent">Review</button>
+      </div>
+    </div>
+
+    <div id="sandy-chat" class="hidden flex flex-col" style="height: 22rem;">
+      <div id="sandy-chat-log" class="flex-1 space-y-3 overflow-y-auto px-4 py-4" aria-live="polite"></div>
+      <p id="sandy-chat-error" class="hidden mx-4 mb-2 rounded-lg bg-rose-50 px-3 py-2 text-xs text-rose-700" role="alert"></p>
+      <form id="sandy-chat-form" class="flex items-end gap-2 border-t border-ink-100 p-3">
+        <label class="sr-only" for="sandy-chat-input">Message Sandy</label>
+        <textarea id="sandy-chat-input" rows="1" maxlength="1500" required
+                  placeholder="Ask Sandy anything about GFR…"
+                  class="max-h-24 min-h-[2.5rem] flex-1 resize-none rounded-xl border border-ink-200 bg-ink-50 px-3 py-2 text-sm focus:border-brand-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/20"></textarea>
+        <button type="submit" id="sandy-chat-send"
+                class="rounded-xl bg-brand-700 px-3 py-2.5 text-sm font-semibold text-white hover:bg-brand-800 disabled:cursor-wait disabled:opacity-60"
+                aria-label="Send message">
+          Send
+        </button>
+      </form>
+    </div>
+
+    <form id="sandy-form" action="{% url 'dashboard:sandy_feedback' %}" method="post" class="hidden space-y-5 p-5">
       {% csrf_token %}
       <fieldset>
         <legend class="text-sm font-semibold text-ink-900">How is your experience?</legend>
@@ -107,7 +164,7 @@
 
   <button type="button" id="sandy-bubble"
           class="sandy-float relative flex h-16 w-16 items-center justify-center rounded-full bg-white p-1 text-white shadow-xl shadow-brand-800/30 transition hover:scale-105 focus:outline-none focus:ring-4 focus:ring-brand-200"
-          aria-label="Open Sandy feedback" aria-expanded="false" aria-controls="sandy-panel">
+          aria-label="Open Sandy" aria-expanded="false" aria-controls="sandy-panel">
     <span class="sandy-ring absolute inset-0 rounded-full border-2 border-brand-400"></span>
     <img src="{% static 'img/sandy-mascot.png' %}" alt=""
          class="relative h-full w-full rounded-full object-cover">
@@ -119,26 +176,99 @@
   (() => {
     const widget = document.getElementById('sandy-widget');
     if (!widget) return;
+
     const bubble = document.getElementById('sandy-bubble');
     const prompt = document.getElementById('sandy-prompt');
     const promptOpen = document.getElementById('sandy-prompt-open');
     const panel = document.getElementById('sandy-panel');
+    const modePicker = document.getElementById('sandy-mode-picker');
+    const tabs = document.getElementById('sandy-tabs');
+    const chatPane = document.getElementById('sandy-chat');
+    const chatLog = document.getElementById('sandy-chat-log');
+    const chatForm = document.getElementById('sandy-chat-form');
+    const chatInput = document.getElementById('sandy-chat-input');
+    const chatSend = document.getElementById('sandy-chat-send');
+    const chatError = document.getElementById('sandy-chat-error');
     const form = document.getElementById('sandy-form');
     const thanks = document.getElementById('sandy-thanks');
     const error = document.getElementById('sandy-error');
     const submit = document.getElementById('sandy-submit');
+    const chatUrl = widget.dataset.chatUrl;
+    const userName = widget.dataset.userName || 'there';
+    const csrfToken = form.querySelector('[name=csrfmiddlewaretoken]').value;
+
+    let mode = null;
+    const history = [];
+
+    const appendBubble = (role, text) => {
+      const row = document.createElement('div');
+      row.className = role === 'user' ? 'flex justify-end' : 'flex justify-start';
+      const bubbleEl = document.createElement('div');
+      bubbleEl.className = role === 'user'
+        ? 'max-w-[85%] rounded-2xl rounded-br-sm bg-brand-700 px-3 py-2 text-sm text-white'
+        : 'max-w-[85%] rounded-2xl rounded-bl-sm bg-ink-50 px-3 py-2 text-sm text-ink-800';
+      bubbleEl.textContent = text;
+      row.appendChild(bubbleEl);
+      chatLog.appendChild(row);
+      chatLog.scrollTop = chatLog.scrollHeight;
+    };
+
+    const ensureWelcome = () => {
+      if (chatLog.childElementCount) return;
+      appendBubble(
+        'model',
+        `Hi ${userName.split(' ')[0]}! I'm Sandy. Ask me how GFR works for your role — journals, projects, reviews, messaging, anything.`
+      );
+    };
+
+    const setTabStyles = () => {
+      tabs.querySelectorAll('[data-sandy-tab]').forEach(tab => {
+        const active = tab.dataset.sandyTab === mode;
+        tab.setAttribute('aria-selected', active ? 'true' : 'false');
+        tab.className = active
+          ? 'px-3 py-2.5 text-sm font-semibold text-brand-800 border-b-2 border-brand-700'
+          : 'px-3 py-2.5 text-sm font-semibold text-ink-500 border-b-2 border-transparent';
+      });
+    };
+
+    const showMode = next => {
+      mode = next;
+      modePicker.classList.add('hidden');
+      tabs.classList.remove('hidden');
+      thanks.classList.add('hidden');
+      setTabStyles();
+      if (mode === 'chat') {
+        form.classList.add('hidden');
+        chatPane.classList.remove('hidden');
+        ensureWelcome();
+        chatInput.focus();
+      } else {
+        chatPane.classList.add('hidden');
+        form.classList.remove('hidden');
+        const rating = form.querySelector('input[name="rating"]');
+        if (rating) rating.focus();
+      }
+    };
 
     const open = () => {
       panel.classList.remove('hidden');
       prompt.classList.add('hidden');
       bubble.setAttribute('aria-expanded', 'true');
       promptOpen.setAttribute('aria-expanded', 'true');
-      if (thanks.classList.contains('hidden')) {
-        panel.querySelector('input[name="rating"]').focus();
-      } else {
+      if (!mode) {
+        modePicker.classList.remove('hidden');
+        tabs.classList.add('hidden');
+        chatPane.classList.add('hidden');
+        form.classList.add('hidden');
+        thanks.classList.add('hidden');
+        modePicker.querySelector('[data-sandy-mode]').focus();
+      } else if (!thanks.classList.contains('hidden')) {
         document.getElementById('sandy-thanks-title').focus();
+      } else {
+        showMode(mode);
       }
     };
+
     const close = () => {
       panel.classList.add('hidden');
       bubble.setAttribute('aria-expanded', 'false');
@@ -151,6 +281,56 @@
     document.getElementById('sandy-close').addEventListener('click', close);
     document.addEventListener('keydown', event => {
       if (event.key === 'Escape' && !panel.classList.contains('hidden')) close();
+    });
+
+    modePicker.querySelectorAll('[data-sandy-mode]').forEach(button => {
+      button.addEventListener('click', () => showMode(button.dataset.sandyMode));
+    });
+    tabs.querySelectorAll('[data-sandy-tab]').forEach(tab => {
+      tab.addEventListener('click', () => showMode(tab.dataset.sandyTab));
+    });
+
+    chatInput.addEventListener('keydown', event => {
+      if (event.key === 'Enter' && !event.shiftKey) {
+        event.preventDefault();
+        chatForm.requestSubmit();
+      }
+    });
+
+    chatForm.addEventListener('submit', async event => {
+      event.preventDefault();
+      const message = chatInput.value.trim();
+      if (!message) return;
+      chatError.classList.add('hidden');
+      appendBubble('user', message);
+      chatInput.value = '';
+      chatSend.disabled = true;
+      chatSend.textContent = '…';
+      try {
+        const response = await fetch(chatUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken,
+            'X-Requested-With': 'XMLHttpRequest',
+          },
+          body: JSON.stringify({ message, history }),
+        });
+        const isJson = (response.headers.get('Content-Type') || '').includes('application/json');
+        const data = isJson ? await response.json() : {};
+        if (!response.ok) throw new Error(data.error || 'Sandy could not reply.');
+        history.push({ role: 'user', text: message });
+        history.push({ role: 'model', text: data.reply });
+        if (history.length > 24) history.splice(0, history.length - 24);
+        appendBubble('model', data.reply);
+      } catch (exception) {
+        chatError.textContent = exception.message || 'Sandy could not reply. Please try again.';
+        chatError.classList.remove('hidden');
+      } finally {
+        chatSend.disabled = false;
+        chatSend.textContent = 'Send';
+        chatInput.focus();
+      }
     });
 
     form.addEventListener('submit', async event => {
@@ -168,6 +348,8 @@
         const data = isJson ? await response.json() : {};
         if (!response.ok) throw new Error(data.error || 'Could not send your review.');
         form.classList.add('hidden');
+        tabs.classList.add('hidden');
+        chatPane.classList.add('hidden');
         thanks.classList.remove('hidden');
         prompt.classList.add('hidden');
         document.getElementById('sandy-thanks-title').focus();

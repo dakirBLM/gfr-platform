@@ -23,6 +23,115 @@ from accounts.models import Education, Publication
 
 logger = logging.getLogger(__name__)
 
+MAX_SANDY_CHAT_MESSAGE = 1500
+MAX_SANDY_CHAT_HISTORY = 12
+
+
+def _gemini_generate(system_prompt: str, history: list, user_message: str) -> str:
+    """Call Gemini generateContent and return the assistant text."""
+    api_key = settings.GEMINI_API_KEY
+    model = getattr(settings, 'GEMINI_MODEL', 'gemini-2.0-flash') or 'gemini-2.0-flash'
+    if not api_key:
+        raise RuntimeError('GEMINI_API_KEY is not configured.')
+
+    contents = []
+    for turn in history[-MAX_SANDY_CHAT_HISTORY:]:
+        role = turn.get('role')
+        text = (turn.get('text') or '').strip()
+        if role not in ('user', 'model') or not text:
+            continue
+        contents.append({'role': role, 'parts': [{'text': text[:MAX_SANDY_CHAT_MESSAGE]}]})
+    contents.append({'role': 'user', 'parts': [{'text': user_message}]})
+
+    endpoint = (
+        f'https://generativelanguage.googleapis.com/v1beta/models/'
+        f'{model}:generateContent?key={api_key}'
+    )
+    body = json.dumps({
+        'systemInstruction': {'parts': [{'text': system_prompt}]},
+        'contents': contents,
+        'generationConfig': {
+            'temperature': 0.6,
+            'maxOutputTokens': 512,
+        },
+    }).encode('utf-8')
+    request = Request(
+        endpoint,
+        data=body,
+        headers={
+            'Content-Type': 'application/json',
+            'User-Agent': 'GFR-Sandy/1.0',
+        },
+        method='POST',
+    )
+    with urlopen(request, timeout=20) as response:
+        payload = json.loads(response.read().decode('utf-8'))
+
+    candidates = payload.get('candidates') or []
+    if not candidates:
+        raise ValueError('Gemini returned no candidates.')
+    parts = ((candidates[0].get('content') or {}).get('parts')) or []
+    text = ''.join(part.get('text', '') for part in parts).strip()
+    if not text:
+        raise ValueError('Gemini returned an empty reply.')
+    return text
+
+
+@login_required
+@require_POST
+def sandy_chat(request):
+    """Reply to a Sandy chat turn via Gemini, with GFR + role context."""
+    try:
+        payload = json.loads(request.body.decode('utf-8') or '{}')
+    except (UnicodeDecodeError, json.JSONDecodeError):
+        return JsonResponse({'error': 'Invalid chat payload.'}, status=400)
+
+    message = (payload.get('message') or '').strip()
+    if not message:
+        return JsonResponse({'error': 'Please type a message for Sandy.'}, status=400)
+    if len(message) > MAX_SANDY_CHAT_MESSAGE:
+        return JsonResponse(
+            {'error': f'Messages must be under {MAX_SANDY_CHAT_MESSAGE} characters.'},
+            status=400,
+        )
+
+    if not settings.GEMINI_API_KEY:
+        logger.error('GEMINI_API_KEY is not configured.')
+        return JsonResponse(
+            {'error': 'Sandy chat is temporarily unavailable.'},
+            status=503,
+        )
+
+    throttle_key = f'sandy-chat:{request.user.pk}'
+    if not cache.add(throttle_key, True, timeout=3):
+        return JsonResponse(
+            {'error': 'Please wait a moment before sending another message.'},
+            status=429,
+        )
+
+    history = payload.get('history') or []
+    if not isinstance(history, list):
+        history = []
+
+    from dashboard.sandy_context import build_system_prompt
+
+    try:
+        reply = _gemini_generate(build_system_prompt(request.user), history, message)
+    except HTTPError as error:
+        logger.warning('Gemini rejected Sandy chat with status %s.', error.code)
+        return JsonResponse(
+            {'error': 'Sandy could not reply right now. Please try again.'},
+            status=502,
+        )
+    except (URLError, TimeoutError, ValueError, RuntimeError) as error:
+        logger.warning('Sandy chat failed: %s', error)
+        return JsonResponse(
+            {'error': 'Sandy could not reply right now. Please try again.'},
+            status=502,
+        )
+
+    return JsonResponse({'reply': reply})
+
 
 @login_required
 @require_POST
