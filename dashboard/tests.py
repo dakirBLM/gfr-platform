@@ -131,7 +131,7 @@ class SandyFeedbackTests(TestCase):
 def _http_error(code, payload):
     """An HTTPError carrying a Gemini-shaped JSON error body."""
     return HTTPError(
-        url='https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent',
+        url='https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent',
         code=code,
         msg='error',
         hdrs=None,
@@ -139,7 +139,7 @@ def _http_error(code, payload):
     )
 
 
-@override_settings(GEMINI_API_KEY='test-gemini-key', GEMINI_MODEL='gemini-2.0-flash')
+@override_settings(GEMINI_API_KEY='test-gemini-key', GEMINI_MODEL='gemini-3.6-flash')
 class SandyChatTests(TestCase):
     def setUp(self):
         cache.clear()
@@ -200,6 +200,25 @@ class SandyChatTests(TestCase):
         self.assertIn('submit manuscripts', system_text)
         self.assertEqual(body['contents'][-1]['parts'][0]['text'], 'Can I submit a manuscript?')
         self.assertEqual(request.headers['User-agent'], 'GFR-Sandy/1.0')
+        # Gemini 3 spends maxOutputTokens on reasoning before it writes anything,
+        # so the budget has to cover both or the reply comes back empty.
+        self.assertEqual(body['generationConfig']['thinkingConfig']['thinkingLevel'], 'minimal')
+        self.assertGreaterEqual(body['generationConfig']['maxOutputTokens'], 2048)
+        self.assertNotIn('temperature', body['generationConfig'])
+
+    @patch('dashboard.views.urlopen')
+    def test_reply_exhausted_by_reasoning_is_logged_with_its_finish_reason(self, mock_urlopen):
+        upstream = MagicMock()
+        upstream.read.return_value = json.dumps({
+            'candidates': [{'content': {}, 'finishReason': 'MAX_TOKENS'}],
+        }).encode('utf-8')
+        mock_urlopen.return_value.__enter__.return_value = upstream
+
+        with self.assertLogs('dashboard.views', level='WARNING') as logs:
+            response = self._post({'message': 'Hello'})
+
+        self.assertEqual(response.status_code, 502)
+        self.assertIn('MAX_TOKENS', '\n'.join(logs.output))
 
     @patch('dashboard.views.urlopen', side_effect=URLError('offline'))
     def test_upstream_failure_returns_service_error(self, _mock_urlopen):
