@@ -21,6 +21,10 @@ services:
         sync: false
       - key: SANDY_FEEDBACK_WEBHOOK_URL
         sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GEMINI_MODEL
+        value: gemini-2.0-flash
       - key: DATABASE_URL
         sync: false
       - key: SUPABASE_S3_ACCESS_KEY
