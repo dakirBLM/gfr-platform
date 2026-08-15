@@ -27,12 +27,35 @@ MAX_SANDY_CHAT_MESSAGE = 1500
 MAX_SANDY_CHAT_HISTORY = 12
 
 
+class GeminiUnavailable(Exception):
+    """Sandy could not get a reply. The message is for logs; user_message is for the browser."""
+
+    DEFAULT_USER_MESSAGE = 'Sandy could not reply right now. Please try again.'
+
+    def __init__(self, log_message, status=502, user_message=None):
+        super().__init__(log_message)
+        self.status = status
+        self.user_message = user_message or self.DEFAULT_USER_MESSAGE
+
+
+def _gemini_error_detail(error):
+    """Gemini names the real problem here: bad key, unknown model, exhausted quota."""
+    try:
+        body = error.read().decode('utf-8', 'replace')
+    except OSError:
+        return '<response body unavailable>'
+    try:
+        return (json.loads(body).get('error') or {}).get('message') or body[:300]
+    except (json.JSONDecodeError, AttributeError):
+        return body[:300]
+
+
 def _gemini_generate(system_prompt: str, history: list, user_message: str) -> str:
     """Call Gemini generateContent and return the assistant text."""
     api_key = settings.GEMINI_API_KEY
     model = getattr(settings, 'GEMINI_MODEL', 'gemini-2.0-flash') or 'gemini-2.0-flash'
     if not api_key:
-        raise RuntimeError('GEMINI_API_KEY is not configured.')
+        raise GeminiUnavailable('GEMINI_API_KEY is not configured.')
 
     contents = []
     for turn in history[-MAX_SANDY_CHAT_HISTORY:]:
@@ -43,10 +66,6 @@ def _gemini_generate(system_prompt: str, history: list, user_message: str) -> st
         contents.append({'role': role, 'parts': [{'text': text[:MAX_SANDY_CHAT_MESSAGE]}]})
     contents.append({'role': 'user', 'parts': [{'text': user_message}]})
 
-    endpoint = (
-        f'https://generativelanguage.googleapis.com/v1beta/models/'
-        f'{model}:generateContent?key={api_key}'
-    )
     body = json.dumps({
         'systemInstruction': {'parts': [{'text': system_prompt}]},
         'contents': contents,
@@ -55,25 +74,53 @@ def _gemini_generate(system_prompt: str, history: list, user_message: str) -> st
             'maxOutputTokens': 512,
         },
     }).encode('utf-8')
+    # The key travels as a header so it never lands in a URL, log line, or traceback.
     request = Request(
-        endpoint,
+        f'https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent',
         data=body,
         headers={
             'Content-Type': 'application/json',
             'User-Agent': 'GFR-Sandy/1.0',
+            'x-goog-api-key': api_key,
         },
         method='POST',
     )
-    with urlopen(request, timeout=20) as response:
-        payload = json.loads(response.read().decode('utf-8'))
+
+    try:
+        with urlopen(request, timeout=20) as response:
+            raw = response.read().decode('utf-8')
+    except HTTPError as error:
+        detail = _gemini_error_detail(error)
+        if error.code == 429:
+            raise GeminiUnavailable(
+                f'Gemini quota exhausted for model "{model}": {detail}',
+                status=429,
+                user_message='Sandy is a bit busy. Please try again in a minute.',
+            )
+        raise GeminiUnavailable(f'Gemini returned HTTP {error.code} for model "{model}": {detail}')
+    except (URLError, TimeoutError) as error:
+        raise GeminiUnavailable(f'Could not reach Gemini: {error}')
+
+    try:
+        payload = json.loads(raw)
+    except json.JSONDecodeError:
+        raise GeminiUnavailable('Gemini returned a response that was not JSON.')
+
+    blocked = (payload.get('promptFeedback') or {}).get('blockReason')
+    if blocked:
+        raise GeminiUnavailable(f'Gemini blocked the prompt: {blocked}')
 
     candidates = payload.get('candidates') or []
     if not candidates:
-        raise ValueError('Gemini returned no candidates.')
-    parts = ((candidates[0].get('content') or {}).get('parts')) or []
+        raise GeminiUnavailable('Gemini returned no candidates.')
+
+    candidate = candidates[0]
+    parts = ((candidate.get('content') or {}).get('parts')) or []
     text = ''.join(part.get('text', '') for part in parts).strip()
     if not text:
-        raise ValueError('Gemini returned an empty reply.')
+        raise GeminiUnavailable(
+            f'Gemini returned an empty reply (finishReason={candidate.get("finishReason") or "unknown"}).'
+        )
     return text
 
 
@@ -117,18 +164,9 @@ def sandy_chat(request):
 
     try:
         reply = _gemini_generate(build_system_prompt(request.user), history, message)
-    except HTTPError as error:
-        logger.warning('Gemini rejected Sandy chat with status %s.', error.code)
-        return JsonResponse(
-            {'error': 'Sandy could not reply right now. Please try again.'},
-            status=502,
-        )
-    except (URLError, TimeoutError, ValueError, RuntimeError) as error:
+    except GeminiUnavailable as error:
         logger.warning('Sandy chat failed: %s', error)
-        return JsonResponse(
-            {'error': 'Sandy could not reply right now. Please try again.'},
-            status=502,
-        )
+        return JsonResponse({'error': error.user_message}, status=error.status)
 
     return JsonResponse({'reply': reply})
 
