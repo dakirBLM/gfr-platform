@@ -1,6 +1,7 @@
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.views.decorators.http import require_POST
 from django.db.models import Q
 from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
@@ -348,14 +349,38 @@ def delete_task(request, slug, task_pk):
 
 
 @login_required
+@require_POST
 def toggle_task(request, slug, task_pk):
-    """Simple toggle for managers — members must use submit_task instead."""
+    """One-way completion for managers; completed tasks can only be
+    reopened through the explicit reopen action in task_detail."""
     project = get_object_or_404(Project, slug=slug)
     task = get_object_or_404(Task, pk=task_pk, project=project)
     _require_manager(project, request.user)
-    task.status = TaskStatus.TODO if task.status == TaskStatus.DONE else TaskStatus.DONE
+    if task.status == TaskStatus.DONE:
+        messages.warning(request, f'Task "{task.title}" is already completed. Use the Reopen action in the task page to reopen it.')
+        return redirect('dashboard:project_detail', slug=slug)
+    task.status = TaskStatus.DONE
     task.save(update_fields=['status'])
     return redirect('dashboard:project_detail', slug=slug)
+
+
+@login_required
+@require_POST
+def reopen_task(request, slug, task_pk):
+    """Explicit, intentional action to take a completed task back to To do."""
+    project = get_object_or_404(Project, slug=slug)
+    task = get_object_or_404(Task, pk=task_pk, project=project)
+    _require_manager(project, request.user)
+    if task.status != TaskStatus.DONE:
+        messages.info(request, f'Task "{task.title}" is not completed.')
+        return redirect('dashboard:project_task_detail', slug=slug, task_pk=task_pk)
+    task.status = TaskStatus.TODO
+    # A reopened task is no longer "approved": the submission loop restarts.
+    if task.review_status == ReviewStatus.APPROVED:
+        task.review_status = ReviewStatus.NONE
+    task.save(update_fields=['status', 'review_status'])
+    messages.warning(request, f'Task "{task.title}" was reopened.')
+    return redirect('dashboard:project_task_detail', slug=slug, task_pk=task_pk)
 
 
 @login_required

@@ -2,7 +2,7 @@ from django.test import TestCase
 from django.urls import reverse
 
 from accounts.models import Role, User
-from .models import MemberRole, Project, ProjectApplication, ProjectMembership, ProjectSection, Task
+from .models import MemberRole, Project, ProjectApplication, ProjectMembership, ProjectSection, ReviewStatus, Task, TaskStatus
 
 
 class GuarantorWorkflowTests(TestCase):
@@ -32,3 +32,86 @@ class GuarantorWorkflowTests(TestCase):
         section = ProjectSection.objects.create(project=self.project, title='Data collection', order=1)
         task = Task.objects.create(project=self.project, section=section, title='Collect sources')
         self.assertEqual(task.section.title, 'Data collection')
+
+
+class TaskCloseReopenGuardTests(TestCase):
+    def setUp(self):
+        self.manager = User.objects.create_user('mgr', 'mgr@example.com', 'password', role=Role.PROFESSOR)
+        self.member = User.objects.create_user('member', 'member@example.com', 'password', role=Role.RESEARCHER)
+        self.project = Project.objects.create(title='Guard study', description='A study', created_by=self.manager)
+        ProjectMembership.objects.create(project=self.project, user=self.manager, role=MemberRole.OWNER)
+        ProjectMembership.objects.create(project=self.project, user=self.member, role=MemberRole.MEMBER)
+        self.task = Task.objects.create(project=self.project, title='Survey', assigned_to=self.member)
+
+    def test_completed_task_cannot_be_reopened_by_approve_checkmark(self):
+        self.task.status = TaskStatus.DONE
+        self.task.save(update_fields=['status'])
+        self.client.force_login(self.manager)
+        response = self.client.post(reverse('dashboard:project_toggle_task', args=[self.project.slug, self.task.pk]))
+        self.task.refresh_from_db()
+        self.assertEqual(self.task.status, TaskStatus.DONE)
+
+    def test_completed_task_toggle_posts_are_ignored(self):
+        self.task.status = TaskStatus.DONE
+        self.task.save(update_fields=['status'])
+        self.client.force_login(self.manager)
+        for _ in range(3):
+            self.client.post(reverse('dashboard:project_toggle_task', args=[self.project.slug, self.task.pk]))
+        self.task.refresh_from_db()
+        self.assertEqual(self.task.status, TaskStatus.DONE)
+
+    def test_toggle_task_requires_post(self):
+        self.client.force_login(self.manager)
+        url = reverse('dashboard:project_toggle_task', args=[self.project.slug, self.task.pk])
+        self.assertEqual(self.client.get(url).status_code, 405)
+        self.task.refresh_from_db()
+        self.assertEqual(self.task.status, TaskStatus.TODO)
+
+    def test_open_task_can_still_be_marked_done_by_manager(self):
+        self.client.force_login(self.manager)
+        self.client.post(reverse('dashboard:project_toggle_task', args=[self.project.slug, self.task.pk]))
+        self.task.refresh_from_db()
+        self.assertEqual(self.task.status, TaskStatus.DONE)
+
+    def test_reopen_task_route_reopens_completed_task(self):
+        self.task.status = TaskStatus.DONE
+        self.task.save(update_fields=['status'])
+        self.client.force_login(self.manager)
+        response = self.client.post(reverse('dashboard:project_reopen_task', args=[self.project.slug, self.task.pk]))
+        self.task.refresh_from_db()
+        self.assertEqual(self.task.status, TaskStatus.TODO)
+        self.assertEqual(response.status_code, 302)
+
+    def test_reopen_task_clears_approval_badge(self):
+        self.task.status = TaskStatus.DONE
+        self.task.review_status = ReviewStatus.APPROVED
+        self.task.save(update_fields=['status', 'review_status'])
+        self.client.force_login(self.manager)
+        self.client.post(reverse('dashboard:project_reopen_task', args=[self.project.slug, self.task.pk]))
+        self.task.refresh_from_db()
+        self.assertEqual(self.task.status, TaskStatus.TODO)
+        self.assertEqual(self.task.review_status, ReviewStatus.NONE)
+
+    def test_reopen_task_only_for_completed_tasks(self):
+        self.client.force_login(self.manager)
+        self.client.post(reverse('dashboard:project_reopen_task', args=[self.project.slug, self.task.pk]))
+        self.task.refresh_from_db()
+        self.assertEqual(self.task.status, TaskStatus.TODO)
+
+    def test_reopen_task_requires_manager(self):
+        self.task.status = TaskStatus.DONE
+        self.task.save(update_fields=['status'])
+        self.client.force_login(self.member)
+        response = self.client.post(reverse('dashboard:project_reopen_task', args=[self.project.slug, self.task.pk]))
+        self.assertEqual(response.status_code, 404)
+        self.task.refresh_from_db()
+        self.assertEqual(self.task.status, TaskStatus.DONE)
+
+    def test_reopen_task_requires_post(self):
+        self.task.status = TaskStatus.DONE
+        self.task.save(update_fields=['status'])
+        self.client.force_login(self.manager)
+        url = reverse('dashboard:project_reopen_task', args=[self.project.slug, self.task.pk])
+        self.assertEqual(self.client.get(url).status_code, 405)
+        self.task.refresh_from_db()
+        self.assertEqual(self.task.status, TaskStatus.DONE)
