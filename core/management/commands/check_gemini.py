@@ -10,7 +10,7 @@ server log.
 from django.conf import settings
 from django.core.management.base import BaseCommand
 
-from dashboard.views import GeminiUnavailable, _gemini_generate
+from dashboard.views import GEMINI_DEFAULT_MODEL, GeminiUnavailable, _gemini_generate
 
 
 class Command(BaseCommand):
@@ -23,7 +23,7 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args, **options):
-        model = getattr(settings, 'GEMINI_MODEL', '') or 'gemini-2.0-flash'
+        model = getattr(settings, 'GEMINI_MODEL', '') or GEMINI_DEFAULT_MODEL
         key = settings.GEMINI_API_KEY or ''
         if not key:
             self.stdout.write(self.style.ERROR(

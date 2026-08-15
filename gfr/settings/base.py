@@ -18,7 +18,7 @@ SECRET_KEY = os.environ.get(
 SANDY_FEEDBACK_WEBHOOK_URL = os.environ.get('SANDY_FEEDBACK_WEBHOOK_URL', '')
 # Gemini powers Sandy's chat mode. Leave empty to disable chat gracefully.
 GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY', '')
-GEMINI_MODEL = os.environ.get('GEMINI_MODEL', 'gemini-2.0-flash')
+GEMINI_MODEL = os.environ.get('GEMINI_MODEL', 'gemini-3.6-flash')
 
 INSTALLED_APPS = [
     'django.contrib.admin',
