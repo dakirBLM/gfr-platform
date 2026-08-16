@@ -522,6 +522,9 @@ def _pending_owner_work(user):
         entry['application_count'] = len(entry['applications'])
         entry['milestone_count'] = len(entry['milestones'])
         entry['invitation_count'] = len(entry['invitations'])
+        entry['pending_count'] = (
+            entry['task_count'] + entry['application_count'] + entry['milestone_count'] + entry['invitation_count']
+        )
         entry['overdue_count'] = sum(
             1 for t in entry['tasks'] if t.is_overdue
         ) + sum(
