@@ -4,7 +4,11 @@ from django.test import TestCase
 from django.urls import reverse
 
 from accounts.models import Role, User
-from .models import MemberRole, Project, ProjectApplication, ProjectMembership, ProjectSection, ReviewStatus, Task, TaskStatus
+from messaging.utils import get_or_create_project_chat
+from .models import (
+    InvitationStatus, MemberRole, Project, ProjectApplication, ProjectInvitation,
+    ProjectMembership, ProjectSection, ReviewStatus, Task, TaskStatus,
+)
 
 
 class GuarantorWorkflowTests(TestCase):
@@ -295,3 +299,155 @@ class TaskNavigationGapTests(TestCase):
         response = self._list_page()
         self.assertEqual(response.status_code, 200)
         self.assertNotContains(response, f'href="{self._detail_url()}"')
+
+
+class InvitationMembershipTests(TestCase):
+    """Invitation-based membership: nothing becomes real until the invitee accepts."""
+
+    def setUp(self):
+        self.manager = User.objects.create_user('invmg', 'invmg@example.com', 'password', role=Role.PROFESSOR)
+        self.invitee = User.objects.create_user('invitee2', 'invitee2@example.com', 'password', role=Role.RESEARCHER)
+        self.other = User.objects.create_user('invother', 'invother@example.com', 'password', role=Role.RESEARCHER)
+        self.admin = User.objects.create_user('invadmin', 'invadmin@example.com', 'password', role=Role.ADMIN)
+        self.project = Project.objects.create(title='Inv study', description='A study', created_by=self.manager)
+        ProjectMembership.objects.create(project=self.project, user=self.manager, role=MemberRole.OWNER)
+        self.detail_url = reverse('dashboard:project_detail', args=[self.project.slug])
+
+    def _invite(self, inviter=None, invitee=None, role='member', message=''):
+        user = invitee or self.invitee
+        self.client.force_login(inviter or self.manager)
+        return self.client.post(
+            reverse('dashboard:project_invite_member', args=[self.project.slug]),
+            {'user': user.pk, 'role': role, 'message': message},
+        )
+
+    def _canvas_node_ids(self):
+        response = self.client.get(reverse('dashboard:project_canvas_data', args=[self.project.slug]))
+        self.assertEqual(response.status_code, 200)
+        return {str(member['id']) for member in response.json()['members']}
+
+    def test_invite_creates_pending_invitation_without_membership_or_chat(self):
+        response = self._invite(message='Join our team!')
+        self.assertRedirects(response, self.detail_url)
+        invitation = ProjectInvitation.objects.get(project=self.project, invitee=self.invitee)
+        self.assertEqual(invitation.status, InvitationStatus.PENDING)
+        self.assertEqual(invitation.role, MemberRole.MEMBER)
+        self.assertEqual(invitation.message, 'Join our team!')
+        self.assertEqual(invitation.invited_by, self.manager)
+        self.assertFalse(ProjectMembership.objects.filter(project=self.project, user=self.invitee).exists())
+        self.assertTrue(self.invitee.notifications.filter(notif_type='project_invitation').exists())
+        conversation = get_or_create_project_chat(self.project)
+        self.assertNotIn(self.invitee, conversation.participants.all())
+
+    def test_invitee_has_no_canvas_bubble_until_accepted(self):
+        self._invite()
+        self.client.force_login(self.manager)
+        self.assertNotIn(str(self.invitee.pk), self._canvas_node_ids())
+
+    def test_duplicate_pending_invitation_is_blocked(self):
+        self._invite()
+        self._invite()
+        self.assertEqual(
+            ProjectInvitation.objects.filter(project=self.project, invitee=self.invitee).count(), 1,
+        )
+
+    def test_accept_creates_membership_chat_bubble_and_manager_notice(self):
+        self._invite(role='manager')
+        invitation = ProjectInvitation.objects.get(project=self.project, invitee=self.invitee)
+        self.client.force_login(self.invitee)
+        response = self.client.post(
+            reverse('dashboard:respond_to_invitation', args=[invitation.pk]), {'action': 'accept'},
+        )
+        self.assertRedirects(response, reverse('dashboard:home'))
+        invitation.refresh_from_db()
+        self.assertEqual(invitation.status, InvitationStatus.ACCEPTED)
+        self.assertIsNotNone(invitation.responded_at)
+        membership = ProjectMembership.objects.get(project=self.project, user=self.invitee)
+        self.assertEqual(membership.role, MemberRole.MANAGER)
+        conversation = get_or_create_project_chat(self.project)
+        self.assertIn(self.invitee, conversation.participants.all())
+        self.assertTrue(self.manager.notifications.filter(notif_type='project_joined').exists())
+        self.client.force_login(self.manager)
+        self.assertIn(str(self.invitee.pk), self._canvas_node_ids())
+
+    def test_decline_creates_no_membership_and_notifies_sender(self):
+        self._invite()
+        invitation = ProjectInvitation.objects.get(project=self.project, invitee=self.invitee)
+        self.client.force_login(self.invitee)
+        response = self.client.post(
+            reverse('dashboard:respond_to_invitation', args=[invitation.pk]), {'action': 'decline'},
+        )
+        self.assertRedirects(response, reverse('dashboard:home'))
+        invitation.refresh_from_db()
+        self.assertEqual(invitation.status, InvitationStatus.DECLINED)
+        self.assertFalse(ProjectMembership.objects.filter(project=self.project, user=self.invitee).exists())
+        self.assertTrue(self.manager.notifications.filter(notif_type='project_invitation_declined').exists())
+
+    def test_only_the_invitee_can_respond(self):
+        self._invite()
+        invitation = ProjectInvitation.objects.get(project=self.project, invitee=self.invitee)
+        self.client.force_login(self.other)
+        response = self.client.post(
+            reverse('dashboard:respond_to_invitation', args=[invitation.pk]), {'action': 'accept'},
+        )
+        self.assertEqual(response.status_code, 404)
+        invitation.refresh_from_db()
+        self.assertEqual(invitation.status, InvitationStatus.PENDING)
+
+    def test_responded_invitation_cannot_be_answered_again(self):
+        self._invite()
+        invitation = ProjectInvitation.objects.get(project=self.project, invitee=self.invitee)
+        self.client.force_login(self.invitee)
+        self.client.post(reverse('dashboard:respond_to_invitation', args=[invitation.pk]), {'action': 'accept'})
+        response = self.client.post(reverse('dashboard:respond_to_invitation', args=[invitation.pk]), {'action': 'accept'})
+        self.assertEqual(response.status_code, 404)
+
+    def test_reinvite_allowed_after_decline(self):
+        self._invite()
+        invitation = ProjectInvitation.objects.get(project=self.project, invitee=self.invitee)
+        self.client.force_login(self.invitee)
+        self.client.post(reverse('dashboard:respond_to_invitation', args=[invitation.pk]), {'action': 'decline'})
+        self._invite()
+        self.assertEqual(
+            ProjectInvitation.objects.filter(project=self.project, invitee=self.invitee, status=InvitationStatus.PENDING).count(),
+            1,
+        )
+
+    def test_manager_can_cancel_pending_invitation(self):
+        self._invite()
+        invitation = ProjectInvitation.objects.get(project=self.project, invitee=self.invitee)
+        self.client.force_login(self.manager)
+        response = self.client.post(
+            reverse('dashboard:project_cancel_invitation', args=[self.project.slug, invitation.pk]),
+        )
+        self.assertRedirects(response, self.detail_url)
+        self.assertFalse(ProjectInvitation.objects.filter(pk=invitation.pk).exists())
+
+    def test_non_manager_cannot_invite_or_cancel(self):
+        ProjectMembership.objects.create(project=self.project, user=self.other, role=MemberRole.MEMBER)
+        self._invite(inviter=self.other)
+        self.assertEqual(ProjectInvitation.objects.filter(project=self.project).count(), 0)
+        self._invite()
+        invitation = ProjectInvitation.objects.get(project=self.project, invitee=self.invitee)
+        self.client.force_login(self.other)
+        response = self.client.post(
+            reverse('dashboard:project_cancel_invitation', args=[self.project.slug, invitation.pk]),
+        )
+        self.assertEqual(response.status_code, 404)
+
+    def test_direct_add_is_admin_only(self):
+        self.client.force_login(self.manager)
+        response = self.client.post(
+            reverse('dashboard:project_direct_add_member', args=[self.project.slug]),
+            {'user': self.invitee.pk, 'role': 'member'},
+        )
+        self.assertEqual(response.status_code, 404)
+        self.assertFalse(ProjectMembership.objects.filter(project=self.project, user=self.invitee).exists())
+
+        self.client.force_login(self.admin)
+        response = self.client.post(
+            reverse('dashboard:project_direct_add_member', args=[self.project.slug]),
+            {'user': self.invitee.pk, 'role': 'member'},
+        )
+        self.assertRedirects(response, self.detail_url)
+        self.assertTrue(ProjectMembership.objects.filter(project=self.project, user=self.invitee).exists())

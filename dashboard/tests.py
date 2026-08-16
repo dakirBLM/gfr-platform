@@ -16,12 +16,12 @@ from django.urls import reverse
 from django.utils import timezone
 from django.utils.functional import empty
 
-from accounts.models import User
+from accounts.models import Role, User
 from dashboard.views import _dashboard_stats
 from journals.models import Journal, Manuscript, ManuscriptStatus
 from projects.models import (
-    MemberRole, Milestone, Project, ProjectApplication, ProjectMembership,
-    ReviewStatus, Task, TaskPriority, TaskStatus,
+    InvitationStatus, MemberRole, Milestone, Project, ProjectApplication,
+    ProjectInvitation, ProjectMembership, ReviewStatus, Task, TaskPriority, TaskStatus,
 )
 
 
@@ -584,3 +584,56 @@ class PendingOwnerWorkTests(TestCase):
         response = self.client.get(self.url)
         self.assertContains(response, 'Past deadline')
         self.assertContains(response, 'overdue')
+
+
+class InvitationVisibilityTests(TestCase):
+    """Pending invitations must be visible on the dashboard for both sides."""
+
+    def setUp(self):
+        self.owner = User.objects.create_user(
+            username='inv_owner', email='inv-owner@example.com',
+            password='StrongTestPassword!9', role=Role.PROFESSOR,
+        )
+        self.invitee = User.objects.create_user(
+            username='inv_guest', email='inv-guest@example.com',
+            password='StrongTestPassword!9', role=Role.RESEARCHER,
+        )
+        self.project = Project.objects.create(
+            title='Invisible rays', description='About', created_by=self.owner,
+        )
+        ProjectMembership.objects.create(
+            project=self.project, user=self.owner, role=MemberRole.OWNER,
+        )
+        self.invitation = ProjectInvitation.objects.create(
+            project=self.project, invitee=self.invitee, invited_by=self.owner,
+            role=MemberRole.MEMBER, message='Come work with us.',
+        )
+        self.url = reverse('dashboard:home')
+
+    def test_owner_sees_pending_invitations_in_the_pending_work_section(self):
+        self.client.force_login(self.owner)
+        response = self.client.get(self.url)
+        self.assertContains(response, 'Invitations awaiting response')
+        self.assertContains(response, 'inv_guest')
+        self.assertContains(response, 'Invisible rays')
+
+    def test_invitee_sees_accept_decline_section_on_the_dashboard(self):
+        self.client.force_login(self.invitee)
+        response = self.client.get(self.url)
+        self.assertContains(response, 'Invitations for you')
+        self.assertContains(response, 'Invisible rays')
+        self.assertContains(response, 'Come work with us.')
+        self.assertContains(response, 'name="action" value="accept"')
+        self.assertContains(response, 'name="action" value="decline"')
+
+    def test_pending_invitation_disappears_from_dashboard_after_response(self):
+        self.client.force_login(self.invitee)
+        self.client.post(
+            reverse('dashboard:respond_to_invitation', args=[self.invitation.pk]),
+            {'action': 'decline', 'next': self.url},
+        )
+        response = self.client.get(self.url)
+        self.assertNotContains(response, 'Invitations for you')
+        self.client.force_login(self.owner)
+        response = self.client.get(self.url)
+        self.assertNotContains(response, 'Invitations awaiting response')
