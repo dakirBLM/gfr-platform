@@ -245,39 +245,159 @@ def submit_sandy_feedback(request):
     return JsonResponse({'message': 'Thank you for your review!'})
 
 
+def _spark(queryset, days=7):
+    """
+    Daily counts and item titles for the last `days` days, derived from the
+    same queryset that feeds a card's number.
+
+    Returns a list of dicts: ``[{ 'date': ..., 'count': N, 'items': [...] }, ...]``
+    ordered oldest → newest so the template can pair them with the SVG bars.
+    """
+    from datetime import timedelta
+
+    from django.db.models import Count
+    from django.db.models.functions import TruncDate
+    from django.utils import timezone
+
+    today = timezone.localdate()
+    start = today - timedelta(days=days - 1)
+
+    rows = (
+        queryset.filter(created_at__date__gte=start)
+        .annotate(day=TruncDate('created_at'))
+        .values('day')
+        .annotate(count=Count('id'))
+        .order_by('day')
+    )
+    items_by_day = {}
+    for row in rows:
+        items_by_day[row['day']] = row['count']
+
+    title_field = _spark_title_field(queryset)
+    if title_field and items_by_day:
+        titled = (
+            queryset.filter(created_at__date__gte=start)
+            .annotate(day=TruncDate('created_at'))
+            .filter(day__in=items_by_day)
+            .order_by('day')
+            .values_list('day', title_field)
+        )
+        day_titles = {}
+        for day, title in titled:
+            day_titles.setdefault(day, []).append(title)
+    else:
+        day_titles = {}
+
+    return [
+        {
+            'date': start + timedelta(days=i),
+            'count': items_by_day.get(start + timedelta(days=i), 0),
+            'items': day_titles.get(start + timedelta(days=i), []),
+        }
+        for i in range(days)
+    ]
+
+
+def _spark_title_field(queryset):
+    model = queryset.model
+    if hasattr(model, 'title'):
+        return 'title'
+    if hasattr(model, 'name'):
+        return 'name'
+    return None
+
+
+SPARK_STROKE_BY_TONE = {'brand': '#3b6cf2', 'emerald': '#10b981', 'amber': '#f59e0b'}
+
+
+def _line_chart(spark, stroke, global_max):
+    """Build a line-chart dict for the template. The SVG grows taller when
+    y_max > 6 so that Y-axis labels never overlap."""
+    svg_w = 170
+    margin_l, margin_r, margin_b = 18, 4, 14
+    chart_w = svg_w - margin_l - margin_r
+
+    y_max = global_max if global_max > 0 else 1
+    svg_h = max(80, 20 + y_max * 10)
+    chart_h = svg_h - margin_b
+
+    days = len(spark)
+    gap = chart_w / (days - 1) if days > 1 else 0
+
+    points = []
+    for i, p in enumerate(spark):
+        x = margin_l + i * gap
+        h = p['count'] / y_max * (chart_h - 4) if y_max else 0
+        y = chart_h - h
+        items_label = ', '.join(p['items'][:3])
+        if p['count'] > 3:
+            items_label += f' +{p["count"] - 3} more'
+        points.append({
+            'x': round(x, 1), 'y': round(y, 1),
+            'n': p['count'], 't': items_label,
+            'd': p['date'].strftime('%d'),
+        })
+
+    path_parts = [f'{pt["x"]},{pt["y"]}' for pt in points]
+    path = 'M' + ' L'.join(path_parts)
+
+    y_labels = [{'v': v, 'y': round(chart_h - v / y_max * (chart_h - 4), 1)}
+                for v in range(0, y_max + 1)]
+
+    x_labels = [{'label': pt['d'], 'x': pt['x']} for pt in points]
+
+    return {
+        'path': path,
+        'points': points,
+        'y_max': y_max,
+        'y_labels': y_labels,
+        'x_labels': x_labels,
+        'stroke': stroke,
+        'svg_w': svg_w,
+        'svg_h': svg_h,
+    }
+
+
+def _line_chart_json(chart):
+    """JSON-safe version of line chart data for the template data attribute."""
+    return [
+        {
+            'd': pt['d'], 'n': pt['n'], 't': pt['t'],
+            'x': pt['x'], 'y': pt['y'],
+        }
+        for pt in chart['points']
+    ]
+
+
 def _dashboard_stats(user):
-    """Real counts for the dashboard home stat cards."""
+    """Real counts for the dashboard home stat cards. Each card's line chart is
+    built from the same queryset as its number, so graphs match the numbers."""
     from journals.models import Manuscript, ManuscriptStatus
     from projects.models import Task, TaskStatus
-    from messaging.models import Message
-    from conferences.models import Registration
 
-    manuscripts = (
-        Manuscript.objects
-        .filter(submitter=user)
-        .exclude(status=ManuscriptStatus.DRAFT)
-        .count()
-    )
-    projects = user.projects.count()
-    open_tasks = (
-        Task.objects
-        .filter(assigned_to=user)
-        .exclude(status=TaskStatus.DONE)
-        .count()
-    )
-    unread = (
-        Message.objects
-        .filter(conversation__participants=user)
-        .exclude(sender=user)
-        .exclude(read_by=user)
-        .count()
-    )
-    return [
-        {'label': 'Manuscripts', 'value': manuscripts, 'sub': 'submitted',          'tone': 'brand',   'href': reverse('dashboard:manuscript_list')},
-        {'label': 'Projects',    'value': projects,    'sub': 'you participate in',  'tone': 'emerald', 'href': reverse('dashboard:project_list')},
-        {'label': 'Open tasks',  'value': open_tasks,  'sub': 'assigned to you',     'tone': 'amber',   'href': reverse('dashboard:project_list') + '?tab=mine'},
-        {'label': 'Unread msgs', 'value': unread,      'sub': 'waiting for a reply', 'tone': 'violet',  'href': reverse('dashboard:message_inbox')},
+    manuscripts = Manuscript.objects.filter(submitter=user).exclude(status=ManuscriptStatus.DRAFT)
+    projects = user.projects.all()
+    open_tasks = Task.objects.filter(assigned_to=user).exclude(status=TaskStatus.DONE)
+
+    specs = [
+        (manuscripts, {'label': 'Manuscripts', 'sub': 'submitted',          'tone': 'brand',   'href': reverse('dashboard:manuscript_list')}),
+        (projects,    {'label': 'Projects',    'sub': 'you participate in', 'tone': 'emerald', 'href': reverse('dashboard:project_list')}),
+        (open_tasks,  {'label': 'Open tasks',  'sub': 'assigned to you',    'tone': 'amber',   'href': reverse('dashboard:project_list') + '?tab=mine'}),
     ]
+    sparks = [_spark(qs) for qs, _ in specs]
+    counts_only = [[p['count'] for p in spark] for spark in sparks]
+    global_max = max((max(c) for c in counts_only), default=0)
+    stats = []
+    for (queryset, base), spark in zip(specs, sparks):
+        stroke = SPARK_STROKE_BY_TONE[base['tone']]
+        chart = _line_chart(spark, stroke, global_max)
+        stats.append(dict(
+            base,
+            value=queryset.count(),
+            chart=chart,
+            chart_json=json.dumps(_line_chart_json(chart)),
+        ))
+    return stats
 
 
 def _my_open_tasks(user):

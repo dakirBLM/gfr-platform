@@ -1,4 +1,5 @@
 import json
+from datetime import timedelta
 from io import BytesIO
 from os import makedirs
 from os.path import join
@@ -12,9 +13,13 @@ from django.contrib.staticfiles.storage import staticfiles_storage
 from django.core.cache import cache
 from django.test import TestCase, override_settings
 from django.urls import reverse
+from django.utils import timezone
 from django.utils.functional import empty
 
 from accounts.models import User
+from dashboard.views import _dashboard_stats
+from journals.models import Journal, Manuscript, ManuscriptStatus
+from projects.models import Project, Task, TaskStatus
 
 
 MANIFEST_STORAGES = {
@@ -268,3 +273,134 @@ class SandyChatTests(TestCase):
         response = self._post({'message': 'Hello'})
         self.assertEqual(response.status_code, 302)
         self.assertIn('/accounts/login/', response['Location'])
+
+
+class DashboardStatsTests(TestCase):
+    """Overview cards must pair each number with a sparkline from the same queryset."""
+
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username='stats_user',
+            email='stats@example.com',
+            password='StrongTestPassword!9',
+        )
+        self.journal = Journal.objects.create(
+            name='Test Journal',
+            slug='test-journal',
+            description='A journal for tests.',
+        )
+
+    def test_overview_has_three_cards_and_no_unread_messages_card(self):
+        stats = _dashboard_stats(self.user)
+        self.assertEqual(
+            [s['label'] for s in stats],
+            ['Manuscripts', 'Projects', 'Open tasks'],
+        )
+
+    def test_manuscript_line_chart_counts_only_recent_records(self):
+        recent = Manuscript.objects.create(
+            journal=self.journal, submitter=self.user,
+            title='Recent study', abstract='x',
+            status=ManuscriptStatus.SUBMITTED,
+        )
+        Manuscript.objects.filter(pk=recent.pk).update(
+            created_at=timezone.now() - timedelta(days=2),
+        )
+        old = Manuscript.objects.create(
+            journal=self.journal, submitter=self.user,
+            title='Old study', abstract='y',
+            status=ManuscriptStatus.SUBMITTED,
+        )
+        Manuscript.objects.filter(pk=old.pk).update(
+            created_at=timezone.now() - timedelta(days=30),
+        )
+        draft = Manuscript.objects.create(
+            journal=self.journal, submitter=self.user,
+            title='Draft', abstract='z',
+        )
+        Manuscript.objects.filter(pk=draft.pk).update(
+            created_at=timezone.now() - timedelta(days=2),
+        )
+
+        card = _dashboard_stats(self.user)[0]
+        self.assertEqual(card['value'], 2)                # DRAFT excluded
+        pts = card['chart']['points']
+        self.assertEqual(len(pts), 7)
+        self.assertEqual(sum(p['n'] for p in pts), 1)
+        self.assertEqual(pts[-3]['n'], 1)                 # counted on its day
+        self.assertIn('chart_json', card)
+        self.assertIn('chart', card)
+        self.assertTrue(card['chart']['path'].startswith('M'))
+
+    def test_line_chart_is_flat_when_there_is_no_activity(self):
+        stats = _dashboard_stats(self.user)
+        for stat in stats:
+            pts = stat['chart']['points']
+            self.assertTrue(all(p['n'] == 0 for p in pts))
+
+    def test_projects_and_tasks_cards_share_their_line_chart_source(self):
+        project = Project.objects.create(
+            title='Research project', description='About',
+            created_by=self.user,
+        )
+        project.members.add(self.user)
+        Project.objects.filter(pk=project.pk).update(
+            created_at=timezone.now() - timedelta(days=3),
+        )
+        Task.objects.create(project=project, title='Draft report', assigned_to=self.user)
+        Task.objects.create(
+            project=project, title='Analyse data', assigned_to=self.user,
+            status=TaskStatus.DONE,
+        )
+
+        projects_card, tasks_card = _dashboard_stats(self.user)[1], _dashboard_stats(self.user)[2]
+        self.assertEqual(projects_card['value'], 1)
+        self.assertEqual(sum(p['n'] for p in projects_card['chart']['points']), 1)
+        self.assertEqual(tasks_card['value'], 1)
+        self.assertEqual(sum(p['n'] for p in tasks_card['chart']['points']), 1)
+        self.assertIn('Research project', projects_card['chart']['points'][-4]['t'])
+
+    def test_line_charts_share_one_global_visual_scale(self):
+        """When one card has a higher peak, its line must reach higher
+        than a card with a lower peak — all three share a single scale."""
+        for _ in range(3):
+            m = Manuscript.objects.create(
+                journal=self.journal, submitter=self.user,
+                title='Three studies', abstract='x',
+                status=ManuscriptStatus.SUBMITTED,
+            )
+            Manuscript.objects.filter(pk=m.pk).update(
+                created_at=timezone.now() - timedelta(days=1),
+            )
+        project = Project.objects.create(
+            title='Project', description='About',
+            created_by=self.user,
+        )
+        project.members.add(self.user)
+        Task.objects.create(project=project, title='One task', assigned_to=self.user)
+
+        stats = _dashboard_stats(self.user)
+        ms_pts = stats[0]['chart']['points']     # manuscripts: peak = 3
+        tasks_pts = stats[2]['chart']['points']  # open tasks:  peak = 1
+
+        ms_min_y = min(p['y'] for p in ms_pts)
+        tasks_min_y = min(p['y'] for p in tasks_pts)
+        self.assertLess(ms_min_y, tasks_min_y)   # peak 3 higher than peak 1
+        self.assertEqual(stats[0]['chart']['y_max'], 3)
+
+    def test_card_height_grows_when_y_max_exceeds_six(self):
+        """When y_max > 6 the SVG should be taller than the default 80px."""
+        for _ in range(7):
+            m = Manuscript.objects.create(
+                journal=self.journal, submitter=self.user,
+                title='Study', abstract='x',
+                status=ManuscriptStatus.SUBMITTED,
+            )
+            Manuscript.objects.filter(pk=m.pk).update(
+                created_at=timezone.now() - timedelta(days=1),
+            )
+        stats = _dashboard_stats(self.user)
+        chart = stats[0]['chart']
+        self.assertEqual(chart['y_max'], 7)
+        self.assertGreater(chart['svg_h'], 80)
+        self.assertEqual(chart['svg_h'], 20 + 7 * 10)  # = 90
