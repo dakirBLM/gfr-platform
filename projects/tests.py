@@ -245,3 +245,53 @@ class SandyProjectDraftTests(TestCase):
             f'name="initial_members" value="{self.invitee.pk}" checked',
             html=False,
         )
+
+
+class TaskNavigationGapTests(TestCase):
+    """Assigned tasks must offer both View and Submit from the project task list."""
+
+    def setUp(self):
+        self.manager = User.objects.create_user('navmgr', 'navmgr@example.com', 'password', role=Role.PROFESSOR)
+        self.member = User.objects.create_user('navmember', 'navmember@example.com', 'password', role=Role.RESEARCHER)
+        self.other_member = User.objects.create_user('navother', 'navother@example.com', 'password', role=Role.RESEARCHER)
+        self.project = Project.objects.create(title='Nav study', description='A study', created_by=self.manager)
+        ProjectMembership.objects.create(project=self.project, user=self.manager, role=MemberRole.OWNER)
+        ProjectMembership.objects.create(project=self.project, user=self.member, role=MemberRole.MEMBER)
+        ProjectMembership.objects.create(project=self.project, user=self.other_member, role=MemberRole.MEMBER)
+        self.task = Task.objects.create(project=self.project, title='Write the survey', assigned_to=self.member)
+
+    def _detail_url(self):
+        return reverse('dashboard:project_task_detail', args=[self.project.slug, self.task.pk])
+
+    def _list_page(self):
+        return self.client.get(reverse('dashboard:project_detail', args=[self.project.slug]))
+
+    def test_assignee_sees_view_alongside_submit_for_pending_task(self):
+        self.client.force_login(self.member)
+        response = self._list_page()
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, f'href="{self._detail_url()}"', count=2)
+        self.assertContains(response, 'Submit →')
+
+    def test_assignee_sees_single_view_after_submitting(self):
+        self.task.review_status = ReviewStatus.SUBMITTED
+        self.task.save(update_fields=['review_status'])
+        self.client.force_login(self.member)
+        response = self._list_page()
+        self.assertContains(response, f'href="{self._detail_url()}"', count=1)
+        self.assertContains(response, 'View →')
+        self.assertNotContains(response, 'Submit →')
+
+    def test_manager_sees_edit_without_submit_link(self):
+        self.client.force_login(self.manager)
+        response = self._list_page()
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, f'href="{self._detail_url()}"', count=1)
+        self.assertContains(response, 'Edit →')
+        self.assertNotContains(response, 'Submit →')
+
+    def test_fellow_member_sees_no_action_link_on_assigned_task(self):
+        self.client.force_login(self.other_member)
+        response = self._list_page()
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, f'href="{self._detail_url()}"')
