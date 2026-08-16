@@ -11,7 +11,7 @@ from django.utils import timezone
 from django.urls import reverse
 from django.views.generic import ListView
 
-from accounts.models import Role
+from accounts.models import Role, User
 from messaging.utils import get_or_create_project_chat, sync_member_to_project_chat
 from notifications.models import NotifType, notify
 from .forms import (
@@ -189,6 +189,8 @@ def _project_canvas_payload(project, membership):
             'members': len(by_user),
             'open_tasks': project.tasks.exclude(status=TaskStatus.DONE).count(),
             'completed_tasks': project.tasks.filter(status=TaskStatus.DONE).count(),
+            'is_open_for_members': project.status == ProjectStatus.OPEN,
+            'can_invite': membership is not None and membership.role in (MemberRole.OWNER, MemberRole.MANAGER),
         },
         'members': list(by_user.values()),
     }
@@ -399,16 +401,27 @@ def leave_project(request, slug):
 
 @login_required
 def invite_member(request, slug):
-    """Manager invites a researcher. Membership only forms once they accept."""
+    """Manager invites a researcher. Membership only forms once they accept.
+
+    Accepts both a regular form POST (project page) and a JSON POST (canvas
+    context-menu invite) so the invitation logic stays in a single place."""
     project = get_object_or_404(Project, slug=slug)
     _require_manager(project, request.user)
-    form = InviteMemberForm(request.POST, project=project)
+    wants_json = request.content_type == 'application/json'
+    if wants_json:
+        try:
+            data = json.loads(request.body or '{}')
+        except json.JSONDecodeError:
+            data = {}
+    else:
+        data = request.POST
+    form = InviteMemberForm(data, project=project)
     if form.is_valid():
         invitee = form.cleaned_data['user']
         if ProjectMembership.objects.filter(project=project, user=invitee).exists():
-            messages.info(request, f'{invitee.display_name} is already a member.')
+            result = ('info', f'{invitee.display_name} is already a member.')
         elif project.invitations.filter(invitee=invitee, status=InvitationStatus.PENDING).exists():
-            messages.info(request, f'An invitation is already pending for {invitee.display_name}.')
+            result = ('info', f'An invitation is already pending for {invitee.display_name}.')
         else:
             invitation = ProjectInvitation.objects.create(
                 project=project,
@@ -424,10 +437,44 @@ def invite_member(request, slug):
                 url=f'/app/projects/{slug}/',
                 project_invitation=invitation,
             )
-            messages.success(request, f'Invitation sent to {invitee.display_name}.')
+            result = ('success', f'Invitation sent to {invitee.display_name}.')
     else:
-        messages.error(request, 'Could not send the invitation.')
+        result = ('error', 'Could not send the invitation.')
+    if wants_json:
+        return JsonResponse({'ok': result[0] == 'success', 'message': result[1]})
+    level = {'success': messages.SUCCESS, 'info': messages.INFO, 'error': messages.ERROR}[result[0]]
+    messages.add_message(request, level, result[1])
     return redirect('dashboard:project_detail', slug=slug)
+
+
+@login_required
+def search_invitable_users(request, slug):
+    """Type-to-search for the canvas invite flow. Nothing is returned until at
+    least two characters are typed, and everyone who is already a member or
+    has a pending invitation is excluded."""
+    project = get_object_or_404(Project, slug=slug)
+    _require_manager(project, request.user)
+    query = request.GET.get('q', '').strip()
+    if len(query) < 2:
+        return JsonResponse({'users': []})
+    existing = project.memberships.values_list('user_id', flat=True)
+    pending = project.invitations.filter(
+        status=InvitationStatus.PENDING,
+    ).values_list('invitee_id', flat=True)
+    users = (
+        User.objects
+        .filter(role__in=[Role.RESEARCHER, Role.PROFESSOR, Role.REVIEWER,
+                          Role.EDITOR, Role.PROJECT_MANAGER])
+        .filter(Q(username__icontains=query) | Q(first_name__icontains=query) |
+                Q(last_name__icontains=query))
+        .exclude(pk__in=set(existing) | set(pending))
+        .order_by('last_name', 'first_name')[:10]
+    )
+    return JsonResponse({'users': [
+        {'id': user.pk, 'name': user.display_name, 'username': user.username,
+         'avatar': user.avatar_url}
+        for user in users
+    ]})
 
 
 @login_required

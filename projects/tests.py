@@ -7,7 +7,7 @@ from accounts.models import Role, User
 from messaging.utils import get_or_create_project_chat
 from .models import (
     InvitationStatus, MemberRole, Project, ProjectApplication, ProjectInvitation,
-    ProjectMembership, ProjectSection, ReviewStatus, Task, TaskStatus,
+    ProjectMembership, ProjectSection, ProjectStatus, ReviewStatus, Task, TaskStatus,
 )
 
 
@@ -451,3 +451,123 @@ class InvitationMembershipTests(TestCase):
         )
         self.assertRedirects(response, self.detail_url)
         self.assertTrue(ProjectMembership.objects.filter(project=self.project, user=self.invitee).exists())
+
+
+class CanvasInviteFlowTests(TestCase):
+    """Right-click canvas invite: type-to-search + the same KAN-40 invitation
+    endpoint — no membership or canvas bubble until the invitee accepts."""
+
+    def setUp(self):
+        self.manager = User.objects.create_user('canvmg', 'canvmg@example.com', 'password', role=Role.PROFESSOR)
+        self.member = User.objects.create_user('canvmb', 'canvmb@example.com', 'password', role=Role.RESEARCHER)
+        self.invitee = User.objects.create_user('canvite', 'canvite@example.com', 'password', role=Role.RESEARCHER)
+        self.target = User.objects.create_user('canvtgt', 'canvtgt@example.com', 'password', role=Role.RESEARCHER,
+                                               first_name='Alexandra', last_name='Carter')
+        self.student = User.objects.create_user('canvstu', 'canvstu@example.com', 'password', role=Role.STUDENT)
+        self.project = Project.objects.create(title='Canvas invite study', description='A study',
+                                              created_by=self.manager)
+        ProjectMembership.objects.create(project=self.project, user=self.manager, role=MemberRole.OWNER)
+        self.member_membership = ProjectMembership.objects.create(
+            project=self.project, user=self.member, role=MemberRole.MEMBER,
+        )
+        self.search_url = reverse('dashboard:project_search_invitable_users', args=[self.project.slug])
+        self.invite_url = reverse('dashboard:project_invite_member', args=[self.project.slug])
+
+    def _json_invite(self, user, role='member'):
+        return self.client.post(
+            self.invite_url,
+            data=json.dumps({'user': user.pk, 'role': role}),
+            content_type='application/json',
+        )
+
+    def _canvas_project_flags(self):
+        response = self.client.get(reverse('dashboard:project_canvas_data', args=[self.project.slug]))
+        self.assertEqual(response.status_code, 200)
+        return response.json()['project']
+
+    def _canvas_node_ids(self):
+        response = self.client.get(reverse('dashboard:project_canvas_data', args=[self.project.slug]))
+        self.assertEqual(response.status_code, 200)
+        return {str(member['id']) for member in response.json()['members']}
+
+    def test_search_requires_manager(self):
+        self.client.force_login(self.member)
+        response = self.client.get(self.search_url, {'q': 'can'})
+        self.assertEqual(response.status_code, 404)
+        self.client.logout()
+        response = self.client.get(self.search_url, {'q': 'can'})
+        self.assertEqual(response.status_code, 302)
+
+    def test_search_returns_nothing_below_two_characters(self):
+        self.client.force_login(self.manager)
+        response = self.client.get(self.search_url, {'q': 'c'})
+        self.assertEqual(response.json(), {'users': []})
+        response = self.client.get(self.search_url, {})
+        self.assertEqual(response.json(), {'users': []})
+
+    def test_search_matches_name_and_username(self):
+        self.client.force_login(self.manager)
+        by_name = self.client.get(self.search_url, {'q': 'alexandra'}).json()['users']
+        self.assertEqual([u['username'] for u in by_name], ['canvtgt'])
+        by_username = self.client.get(self.search_url, {'q': 'canvite'}).json()['users']
+        self.assertEqual([u['username'] for u in by_username], ['canvite'])
+
+    def test_search_excludes_members_and_pending_invitees(self):
+        self.client.force_login(self.manager)
+        self._json_invite(self.invitee)
+        usernames = {u['username'] for u in self.client.get(self.search_url, {'q': 'canv'}).json()['users']}
+        self.assertEqual(usernames, {'canvtgt'})
+
+    def test_search_only_lists_invitable_roles(self):
+        self.client.force_login(self.manager)
+        usernames = {u['username'] for u in self.client.get(self.search_url, {'q': 'canv'}).json()['users']}
+        self.assertNotIn('canvstu', usernames)
+
+    def test_json_invite_uses_same_endpoint_and_creates_pending_invitation(self):
+        self.client.force_login(self.manager)
+        response = self._json_invite(self.target, role='manager')
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.json()['ok'])
+        invitation = ProjectInvitation.objects.get(project=self.project, invitee=self.target)
+        self.assertEqual(invitation.status, InvitationStatus.PENDING)
+        self.assertEqual(invitation.role, MemberRole.MANAGER)
+        self.assertTrue(self.target.notifications.filter(notif_type='project_invitation').exists())
+        self.assertFalse(ProjectMembership.objects.filter(project=self.project, user=self.target).exists())
+        self.assertNotIn(str(self.target.pk), self._canvas_node_ids())
+
+    def test_json_invite_reports_duplicate_pending_without_creating_another(self):
+        self.client.force_login(self.manager)
+        self._json_invite(self.target)
+        response = self._json_invite(self.target)
+        self.assertFalse(response.json()['ok'])
+        self.assertEqual(
+            ProjectInvitation.objects.filter(project=self.project, invitee=self.target, status=InvitationStatus.PENDING).count(),
+            1,
+        )
+
+    def test_json_invite_requires_manager(self):
+        self.client.force_login(self.member)
+        response = self._json_invite(self.target)
+        self.assertEqual(response.status_code, 404)
+        self.assertFalse(ProjectInvitation.objects.filter(project=self.project, invitee=self.target).exists())
+
+    def test_form_invite_still_redirects_with_messages(self):
+        self.client.force_login(self.manager)
+        response = self.client.post(self.invite_url, {'user': self.target.pk, 'role': 'member'})
+        self.assertRedirects(response, reverse('dashboard:project_detail', args=[self.project.slug]))
+        self.assertTrue(ProjectInvitation.objects.filter(project=self.project, invitee=self.target).exists())
+
+    def test_payload_flags_for_invite_openness_and_permission(self):
+        self.client.force_login(self.manager)
+        flags = self._canvas_project_flags()
+        self.assertTrue(flags['can_invite'])
+        self.assertTrue(flags['is_open_for_members'])
+
+        self.project.status = ProjectStatus.CLOSED
+        self.project.save(update_fields=['status'])
+        flags = self._canvas_project_flags()
+        self.assertFalse(flags['is_open_for_members'])
+
+        self.client.force_login(self.member)
+        flags = self._canvas_project_flags()
+        self.assertFalse(flags['can_invite'])
