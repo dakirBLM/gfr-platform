@@ -542,6 +542,8 @@ class PendingOwnerWorkTests(TestCase):
         self.assertContains(response, 'AI research')
         self.assertContains(response, 'Write the report')
         self.assertContains(response, 'Build prototype')
+        self.assertContains(response, f'data-pending-project="{self.project.slug}"')
+        self.assertContains(response, f'data-pending-project="{project2.slug}"')
 
     def test_pending_section_shows_priority_badges(self):
         self._add_pending_work()
