@@ -36,6 +36,47 @@ class GuarantorWorkflowTests(TestCase):
         self.assertEqual(task.section.title, 'Data collection')
 
 
+class ProjectCanvasTests(TestCase):
+    def setUp(self):
+        self.owner = User.objects.create_user('canvas-owner', 'owner@example.com', 'password', role=Role.PROFESSOR)
+        self.member = User.objects.create_user('canvas-member', 'member@example.com', 'password', role=Role.RESEARCHER)
+        self.outsider = User.objects.create_user('canvas-outsider', 'outsider@example.com', 'password', role=Role.RESEARCHER)
+        self.project = Project.objects.create(title='Canvas study', description='A map of our work.', created_by=self.owner)
+        self.owner_membership = ProjectMembership.objects.create(project=self.project, user=self.owner, role=MemberRole.OWNER)
+        self.member_membership = ProjectMembership.objects.create(project=self.project, user=self.member, role=MemberRole.MEMBER)
+        self.task = Task.objects.create(project=self.project, title='Map the cohort', assigned_to=self.member, status=TaskStatus.IN_PROGRESS)
+
+    def test_canvas_is_member_only_and_contains_owner_and_work(self):
+        canvas_url = reverse('dashboard:project_canvas', args=[self.project.slug])
+        self.client.force_login(self.outsider)
+        self.assertEqual(self.client.get(canvas_url).status_code, 404)
+
+        self.client.force_login(self.owner)
+        response = self.client.get(canvas_url)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Project Canvas')
+        self.assertContains(response, 'canvas-owner')
+        self.assertContains(response, 'Map the cohort')
+
+    def test_canvas_position_is_saved_for_project_members_only(self):
+        url = reverse('dashboard:project_canvas_position', args=[self.project.slug, self.member.pk])
+        self.client.force_login(self.member)
+        response = self.client.post(url, data=json.dumps({'x': 31.5, 'y': 68.25}), content_type='application/json')
+        self.assertEqual(response.status_code, 200)
+        self.member_membership.refresh_from_db()
+        self.assertEqual(self.member_membership.canvas_x, 31.5)
+        self.assertEqual(self.member_membership.canvas_y, 68.25)
+
+        owner_url = reverse('dashboard:project_canvas_position', args=[self.project.slug, self.owner.pk])
+        response = self.client.post(owner_url, data=json.dumps({'x': 44, 'y': 52}), content_type='application/json')
+        self.assertEqual(response.status_code, 200)
+        self.owner_membership.refresh_from_db()
+        self.assertEqual(self.owner_membership.canvas_x, 44)
+
+        self.client.force_login(self.outsider)
+        self.assertEqual(self.client.post(url, data=json.dumps({'x': 45, 'y': 50}), content_type='application/json').status_code, 404)
+
+
 class TaskCloseReopenGuardTests(TestCase):
     def setUp(self):
         self.manager = User.objects.create_user('mgr', 'mgr@example.com', 'password', role=Role.PROFESSOR)

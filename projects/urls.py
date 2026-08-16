@@ -5,6 +5,9 @@ urlpatterns = [
     path('', views.ProjectListView.as_view(), name='project_list'),
     path('new/', views.create_project, name='project_create'),
 
+    path('<slug:slug>/canvas/', views.project_canvas, name='project_canvas'),
+    path('<slug:slug>/canvas/data/', views.project_canvas_data, name='project_canvas_data'),
+    path('<slug:slug>/canvas/nodes/<int:user_pk>/position/', views.update_canvas_position, name='project_canvas_position'),
     path('<slug:slug>/', views.project_detail, name='project_detail'),
     path('<slug:slug>/join/', views.join_project, name='project_join'),
     path('<slug:slug>/applications/<int:application_pk>/<str:decision>/', views.review_application, name='project_review_application'),

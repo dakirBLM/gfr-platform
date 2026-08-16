@@ -2,10 +2,13 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.views.decorators.http import require_POST
+import json
+
 from django.db.models import Q
-from django.http import Http404
+from django.http import Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
+from django.urls import reverse
 from django.views.generic import ListView
 
 from accounts.models import Role
@@ -105,6 +108,125 @@ def project_detail(request, slug):
         'pending_count': tasks.filter(review_status=ReviewStatus.SUBMITTED).count(),
         'active_section': 'projects',
     })
+
+
+def _project_canvas_payload(project, membership):
+    """Return the collaboration information used by the interactive canvas."""
+    memberships = list(project.memberships.select_related('user').all())
+    memberships.sort(key=lambda item: (item.user_id != project.created_by_id, item.joined_at))
+
+    # Older demo data can theoretically have a creator without an owner membership.
+    # The project still needs its owner represented on the canvas in that case.
+    if not any(item.user_id == project.created_by_id for item in memberships):
+        memberships.insert(0, type('OwnerMembership', (), {
+            'user': project.created_by,
+            'user_id': project.created_by_id,
+            'role': MemberRole.OWNER,
+            'canvas_x': None,
+            'canvas_y': None,
+        })())
+
+    by_user = {
+        item.user_id: {
+            'id': item.user_id,
+            'name': item.user.display_name,
+            'avatar': item.user.avatar_url,
+            'profile_url': reverse('dashboard:researcher_profile', args=[item.user.username]),
+            'role': 'Project owner' if item.user_id == project.created_by_id else item.get_role_display(),
+            'is_owner': item.user_id == project.created_by_id,
+            'position': {'x': item.canvas_x, 'y': item.canvas_y},
+            # The canvas is a shared workspace: every project member may arrange
+            # any node, and the saved arrangement is visible to the whole team.
+            'can_drag': True,
+            'tasks': [],
+            'completed_tasks': [],
+            'done_count': 0,
+            'in_progress_count': 0,
+        }
+        for item in memberships
+    }
+    for task in project.tasks.select_related('assigned_to').exclude(assigned_to__isnull=True):
+        node = by_user.get(task.assigned_to_id)
+        if not node:
+            continue
+        if task.status == TaskStatus.DONE:
+            node['done_count'] += 1
+            node['completed_tasks'].append({
+                'title': task.title,
+                'url': reverse('dashboard:project_task_detail', args=[project.slug, task.pk]),
+            })
+        else:
+            node['tasks'].append({
+                'title': task.title,
+                'status': task.get_status_display(),
+                'url': reverse('dashboard:project_task_detail', args=[project.slug, task.pk]),
+            })
+            if task.status == TaskStatus.IN_PROGRESS:
+                node['in_progress_count'] += 1
+
+    for node in by_user.values():
+        if node['in_progress_count']:
+            node['work_status'] = 'In progress'
+        elif node['tasks']:
+            node['work_status'] = 'Ready to start'
+        elif node['done_count']:
+            node['work_status'] = 'Finished'
+        else:
+            node['work_status'] = 'No assigned work'
+
+    return {
+        'project': {
+            'title': project.title,
+            'description': project.description,
+            'objectives': project.objectives,
+            'status': project.get_status_display(),
+            'members': len(by_user),
+            'open_tasks': project.tasks.exclude(status=TaskStatus.DONE).count(),
+            'completed_tasks': project.tasks.filter(status=TaskStatus.DONE).count(),
+        },
+        'members': list(by_user.values()),
+    }
+
+
+@login_required
+def project_canvas(request, slug):
+    project = get_object_or_404(Project.objects.select_related('created_by'), slug=slug)
+    membership = ProjectMembership.objects.filter(project=project, user=request.user).first()
+    if not membership:
+        raise Http404
+    return render(request, 'projects/canvas.html', {
+        'project': project,
+        'canvas_data': _project_canvas_payload(project, membership),
+        'active_section': 'projects',
+    })
+
+
+@login_required
+def project_canvas_data(request, slug):
+    project = get_object_or_404(Project.objects.select_related('created_by'), slug=slug)
+    membership = ProjectMembership.objects.filter(project=project, user=request.user).first()
+    if not membership:
+        raise Http404
+    return JsonResponse(_project_canvas_payload(project, membership))
+
+
+@login_required
+@require_POST
+def update_canvas_position(request, slug, user_pk):
+    project = get_object_or_404(Project, slug=slug)
+    membership = ProjectMembership.objects.filter(project=project, user=request.user).first()
+    target = get_object_or_404(ProjectMembership, project=project, user_id=user_pk)
+    if not membership:
+        raise Http404
+    try:
+        payload = json.loads(request.body)
+        x, y = float(payload['x']), float(payload['y'])
+    except (json.JSONDecodeError, KeyError, TypeError, ValueError):
+        return JsonResponse({'error': 'Coordinates must be numbers.'}, status=400)
+    target.canvas_x = min(max(x, 8), 92)
+    target.canvas_y = min(max(y, 10), 90)
+    target.save(update_fields=['canvas_x', 'canvas_y'])
+    return JsonResponse({'x': target.canvas_x, 'y': target.canvas_y})
 
 
 @login_required
