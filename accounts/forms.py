@@ -23,8 +23,12 @@ def _apply_input_css(form: forms.Form, skip: set[str] = frozenset()) -> None:
         widget = field.widget
         if isinstance(widget, (forms.CheckboxInput, forms.FileInput, forms.ClearableFileInput)):
             continue
+        css = INPUT_CSS
+        if widget.input_type == 'password':
+            # Extra right padding so the visibility toggle never overlaps the text.
+            css += ' pr-10'
         existing = widget.attrs.get('class', '')
-        widget.attrs['class'] = (existing + ' ' + INPUT_CSS).strip()
+        widget.attrs['class'] = (existing + ' ' + css).strip()
 
 
 class AvatarForm(forms.ModelForm):

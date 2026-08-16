@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load static %}
 
 {% block title %}Join GFR · Create your academic profile{% endblock %}
 
@@ -51,4 +52,8 @@
     </p>
   </div>
 </section>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/password-toggle.js' %}"></script>
 {% endblock %}

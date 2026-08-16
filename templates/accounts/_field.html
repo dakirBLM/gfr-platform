@@ -1,7 +1,14 @@
 {# Reusable field renderer. Widget classes are set on the form in accounts/forms.py. #}
 <label class="block">
   <span class="text-sm font-medium text-ink-700">{{ field.label }}{% if field.field.required %} <span class="text-rose-600">*</span>{% endif %}</span>
+  {% if field.field.widget.input_type == 'password' %}
+  <span class="relative block">
+    {{ field }}
+    {% include 'accounts/_password_toggle_button.html' with target_id=field.id_for_label %}
+  </span>
+  {% else %}
   {{ field }}
+  {% endif %}
   {% if field.help_text %}<p class="mt-1 text-xs text-ink-600">{{ field.help_text }}</p>{% endif %}
   {% if field.errors %}<p class="mt-1 text-xs text-rose-700">{{ field.errors|join:" " }}</p>{% endif %}
 </label>
