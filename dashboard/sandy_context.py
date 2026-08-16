@@ -19,6 +19,8 @@ What GFR offers:
 - Researcher directory with search and filters
 - Peer-reviewed journals with manuscript submission and double-blind review
 - Research projects with teams, tasks, milestones, and applications
+- Guarantors can use Sandy's Project mode to answer create-form questions one by
+  one; skipped answers stay empty and the create page opens prefilled
 - Conferences with registration and abstract submission
 - Private messaging, a social feed (posts, likes, comments, follows), and notifications
 - A logged-in dashboard under /app/

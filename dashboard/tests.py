@@ -83,16 +83,32 @@ class SandyFeedbackTests(TestCase):
     def test_dashboard_includes_sandy_widget(self):
         response = self.client.get(reverse('dashboard:home'))
         self.assertContains(response, 'id="sandy-widget"')
-        self.assertContains(response, 'Chat with me, or leave a review — your call.')
+        self.assertContains(response, 'Chat, start a project, or leave a review.')
         self.assertContains(response, 'Chat with Sandy')
         self.assertContains(response, 'Leave a review')
         self.assertContains(response, reverse('dashboard:sandy_chat'))
+        self.assertContains(response, reverse('dashboard:sandy_project_draft'))
         # Both entry points are visible before the panel opens.
         self.assertContains(response, 'data-sandy-quick="chat"')
         self.assertContains(response, 'data-sandy-quick="review"')
+        # Default seeded role cannot create projects, so Project stays hidden.
+        self.assertNotContains(response, 'data-sandy-quick="project"')
         self.assertContains(response, 'img/sandy-mascot.png')
         # The chat shows Sandy's avatar next to her messages.
         self.assertContains(response, 'data-sandy-avatar=')
+
+    def test_guarantor_sees_sandy_project_action(self):
+        guarantor = User.objects.create_user(
+            username='guarantor',
+            email='guarantor@example.com',
+            password='StrongTestPassword!9',
+            role='professor',
+        )
+        self.client.force_login(guarantor)
+        response = self.client.get(reverse('dashboard:home'))
+        self.assertContains(response, 'data-sandy-quick="project"')
+        self.assertContains(response, 'Create a project')
+        self.assertContains(response, 'data-can-create-project="1"')
 
     def test_rating_is_required_and_validated(self):
         response = self.client.post(self.url, {'rating': '8'})

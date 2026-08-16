@@ -1,3 +1,5 @@
+import json
+
 from django.test import TestCase
 from django.urls import reverse
 
@@ -115,3 +117,90 @@ class TaskCloseReopenGuardTests(TestCase):
         self.assertEqual(self.client.get(url).status_code, 405)
         self.task.refresh_from_db()
         self.assertEqual(self.task.status, TaskStatus.DONE)
+
+
+class SandyProjectDraftTests(TestCase):
+    def setUp(self):
+        self.guarantor = User.objects.create_user(
+            'prof', 'prof@example.com', 'password', role=Role.PROFESSOR,
+            first_name='Ada', last_name='Lovelace',
+        )
+        self.invitee = User.objects.create_user(
+            'invitee', 'invitee@example.com', 'password', role=Role.RESEARCHER,
+            first_name='Grace', last_name='Hopper',
+        )
+        self.draft_url = reverse('dashboard:sandy_project_draft')
+        self.create_url = reverse('dashboard:project_create')
+
+    def _post_draft(self, payload):
+        return self.client.post(
+            self.draft_url,
+            data=json.dumps(payload),
+            content_type='application/json',
+        )
+
+    def test_researcher_cannot_store_a_project_draft(self):
+        researcher = User.objects.create_user(
+            'res', 'res@example.com', 'password', role=Role.RESEARCHER,
+        )
+        self.client.force_login(researcher)
+        response = self._post_draft({'answers': {'title': 'Blocked'}})
+        self.assertEqual(response.status_code, 403)
+
+    def test_empty_draft_is_rejected(self):
+        self.client.force_login(self.guarantor)
+        response = self._post_draft({'answers': {'title': '  ', 'invites': 'skip'}})
+        self.assertEqual(response.status_code, 400)
+
+    def test_draft_prefills_create_form_and_resolves_invites(self):
+        self.client.force_login(self.guarantor)
+        response = self._post_draft({
+            'answers': {
+                'title': 'Climate sensors',
+                'description': 'A field study of urban sensors.',
+                'objectives': '',
+                'application_question': 'What field experience do you have?',
+                'funding_status': 'partial',
+                'start_date': '2026-09-01',
+                'invites': 'invitee, missing-user',
+            },
+        })
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['redirect'], self.create_url)
+        self.assertIn('title', response.json()['fields'])
+        self.assertIn('initial_members', response.json()['fields'])
+
+        create_page = self.client.get(self.create_url)
+        self.assertEqual(create_page.status_code, 200)
+        self.assertContains(create_page, 'Sandy filled in what you already shared')
+        self.assertContains(create_page, 'Climate sensors')
+        self.assertContains(create_page, 'A field study of urban sensors.')
+        self.assertContains(create_page, 'What field experience do you have?')
+        self.assertContains(
+            create_page,
+            f'name="initial_members" value="{self.invitee.pk}"',
+            html=False,
+        )
+        self.assertContains(
+            create_page,
+            f'value="{self.invitee.pk}" checked',
+            html=False,
+        )
+
+    def test_skipped_invites_leave_members_empty(self):
+        self.client.force_login(self.guarantor)
+        response = self._post_draft({
+            'answers': {
+                'title': 'Solo draft',
+                'description': 'No invites yet.',
+            },
+        })
+        self.assertEqual(response.status_code, 200)
+        self.assertNotIn('initial_members', response.json()['fields'])
+        create_page = self.client.get(self.create_url)
+        self.assertContains(create_page, 'Solo draft')
+        self.assertNotContains(
+            create_page,
+            f'name="initial_members" value="{self.invitee.pk}" checked',
+            html=False,
+        )

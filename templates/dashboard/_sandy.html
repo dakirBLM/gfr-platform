@@ -37,6 +37,8 @@
 
 <aside id="sandy-widget" class="fixed bottom-5 right-5 z-50 flex flex-col items-end gap-3"
        data-chat-url="{% url 'dashboard:sandy_chat' %}"
+       data-project-draft-url="{% url 'dashboard:sandy_project_draft' %}"
+       data-can-create-project="{% if user.can_create_project %}1{% else %}0{% endif %}"
        data-user-name="{{ user.display_name|escape }}"
        data-user-avatar="{{ user.avatar_url }}"
        data-sandy-avatar="{% static 'img/sandy-mascot.png' %}">
@@ -47,10 +49,10 @@
            class="h-9 w-9 shrink-0 rounded-full border border-brand-100 bg-white object-cover shadow-sm">
       <span>
         <span class="block text-xs font-bold text-brand-700">Sandy</span>
-        <span class="block text-[11px] leading-snug text-ink-600">Chat with me, or leave a review — your call.</span>
+        <span class="block text-[11px] leading-snug text-ink-600">Chat, start a project, or leave a review.</span>
       </span>
     </div>
-    <div class="mt-3 grid grid-cols-2 gap-2">
+    <div class="mt-3 grid {% if user.can_create_project %}grid-cols-3{% else %}grid-cols-2{% endif %} gap-2">
       <button type="button" data-sandy-quick="chat"
               class="flex items-center justify-center gap-1.5 rounded-xl bg-brand-700 px-2 py-2 text-xs font-semibold text-white transition hover:bg-brand-800 focus:outline-none focus:ring-2 focus:ring-brand-300">
         <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
@@ -58,6 +60,15 @@
         </svg>
         Chat
       </button>
+      {% if user.can_create_project %}
+      <button type="button" data-sandy-quick="project"
+              class="flex items-center justify-center gap-1.5 rounded-xl bg-ink-800 px-2 py-2 text-xs font-semibold text-white transition hover:bg-ink-900 focus:outline-none focus:ring-2 focus:ring-ink-300">
+        <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M3 7h18M3 12h18M3 17h12"/>
+        </svg>
+        Project
+      </button>
+      {% endif %}
       <button type="button" data-sandy-quick="review"
               class="flex items-center justify-center gap-1.5 rounded-xl bg-teal-600 px-2 py-2 text-xs font-semibold text-white transition hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-teal-300">
         <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
@@ -103,6 +114,20 @@
           <span class="block text-xs text-ink-600">Ask how GFR works for your role.</span>
         </span>
       </button>
+      {% if user.can_create_project %}
+      <button type="button" data-sandy-mode="project"
+              class="flex w-full items-center gap-3 rounded-xl border border-ink-100 bg-ink-50 px-4 py-3 text-left transition hover:border-brand-300 hover:bg-brand-50">
+        <span class="flex h-10 w-10 items-center justify-center rounded-full bg-ink-800 text-white">
+          <svg class="h-5 w-5" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M3 7h18M3 12h18M3 17h12"/>
+          </svg>
+        </span>
+        <span>
+          <span class="block text-sm font-semibold text-ink-900">Create a project</span>
+          <span class="block text-xs text-ink-600">Answer a few questions, then open the form prefilled.</span>
+        </span>
+      </button>
+      {% endif %}
       <button type="button" data-sandy-mode="review"
               class="flex w-full items-center gap-3 rounded-xl border border-ink-100 bg-ink-50 px-4 py-3 text-left transition hover:border-brand-300 hover:bg-brand-50">
         <span class="flex h-10 w-10 items-center justify-center rounded-full bg-teal-600 text-white">
@@ -121,6 +146,10 @@
       <div class="flex gap-1" role="tablist" aria-label="Sandy modes">
         <button type="button" role="tab" data-sandy-tab="chat" aria-selected="false"
                 class="px-3 py-2.5 text-sm font-semibold text-ink-500 border-b-2 border-transparent">Chat</button>
+        {% if user.can_create_project %}
+        <button type="button" role="tab" data-sandy-tab="project" aria-selected="false"
+                class="px-3 py-2.5 text-sm font-semibold text-ink-500 border-b-2 border-transparent">Project</button>
+        {% endif %}
         <button type="button" role="tab" data-sandy-tab="review" aria-selected="false"
                 class="px-3 py-2.5 text-sm font-semibold text-ink-500 border-b-2 border-transparent">Review</button>
       </div>
@@ -129,6 +158,13 @@
     <div id="sandy-chat" class="hidden flex flex-col" style="height: 22rem;">
       <div id="sandy-chat-log" class="flex-1 space-y-3 overflow-y-auto px-4 py-4" aria-live="polite"></div>
       <p id="sandy-chat-error" class="hidden mx-4 mb-2 rounded-lg bg-rose-50 px-3 py-2 text-xs text-rose-700" role="alert"></p>
+      <div id="sandy-project-actions" class="hidden border-t border-ink-100 px-3 pt-2">
+        <button type="button" id="sandy-project-finish"
+                class="w-full rounded-xl border border-brand-200 bg-brand-50 px-3 py-2 text-xs font-semibold text-brand-800 transition hover:bg-brand-100">
+          Open create form with what I have
+        </button>
+        <p class="mt-1 text-[11px] text-ink-500">Type skip to leave a field empty. You can finish early anytime.</p>
+      </div>
       <form id="sandy-chat-form" class="flex items-end gap-2 border-t border-ink-100 p-3">
         <label class="sr-only" for="sandy-chat-input">Message Sandy</label>
         <textarea id="sandy-chat-input" rows="2" maxlength="1500" required
@@ -228,8 +264,167 @@
     const sandyAvatarHTML = `<img src="${sandyAvatar}" alt="Sandy" class="h-7 w-7 shrink-0 rounded-full border border-brand-100 bg-white object-cover shadow-sm self-end">`;
     const userAvatarHTML = `<img src="${userAvatar}" alt="" class="h-7 w-7 shrink-0 rounded-full border border-ink-100 bg-white object-cover self-end">`;
 
+    const projectDraftUrl = widget.dataset.projectDraftUrl;
+    const canCreateProject = widget.dataset.canCreateProject === '1';
+    const projectActions = document.getElementById('sandy-project-actions');
+    const projectFinish = document.getElementById('sandy-project-finish');
+
+    const PROJECT_STEPS = [
+      {
+        key: 'title',
+        prompt: 'What is the project title? You can type skip and fill it later on the form.',
+      },
+      {
+        key: 'description',
+        prompt: 'In a few sentences, what is this project about?',
+      },
+      {
+        key: 'objectives',
+        prompt: 'What are the main objectives? Type skip if you want to leave this empty.',
+      },
+      {
+        key: 'application_question',
+        prompt: 'What question should people answer when they apply to join? Type skip if none.',
+      },
+      {
+        key: 'funding_status',
+        prompt: 'Funding status? Reply with unfunded, partial, funded, or institutional — or skip.',
+      },
+      {
+        key: 'start_date',
+        prompt: 'Planned start date? Use YYYY-MM-DD, or type skip.',
+      },
+      {
+        key: 'end_date',
+        prompt: 'Planned end date? Use YYYY-MM-DD, or type skip.',
+      },
+      {
+        key: 'invites',
+        prompt: 'Who would you invite at creation? GFR usernames separated by commas, or type skip.',
+      },
+    ];
+
     let mode = null;
     const history = [];
+    let projectStep = 0;
+    const projectAnswers = {};
+    let projectStarted = false;
+
+    const isSkip = value => {
+      const text = (value || '').trim().toLowerCase();
+      return !text || ['skip', 'none', 'n/a', 'na', 'no', '-', 'pass'].includes(text);
+    };
+
+    const isDoneCommand = value => {
+      const text = (value || '').trim().toLowerCase();
+      return ['done', 'finish', 'that\'s all', 'thats all', 'open form', 'create'].includes(text);
+    };
+
+    const normalizeFunding = value => {
+      const text = (value || '').trim().toLowerCase();
+      if (['unfunded', 'seeking', 'seeking funding'].includes(text)) return 'unfunded';
+      if (['partial', 'partially', 'partially funded'].includes(text)) return 'partial';
+      if (['funded', 'fully', 'fully funded'].includes(text)) return 'funded';
+      if (['institutional', 'institution', 'institutional support'].includes(text)) return 'institutional';
+      return text;
+    };
+
+    const askProjectStep = () => {
+      const step = PROJECT_STEPS[projectStep];
+      if (!step) return;
+      appendBubble('model', step.prompt);
+      chatInput.placeholder = 'Answer, or type skip…';
+      chatInput.focus();
+    };
+
+    const startProjectWizard = () => {
+      chatLog.innerHTML = '';
+      projectStep = 0;
+      Object.keys(projectAnswers).forEach(key => delete projectAnswers[key]);
+      projectStarted = true;
+      appendBubble(
+        'model',
+        `Hi ${userName.split(' ')[0]}! I'll ask a few project questions one by one. You can skip any answer, or press “Open create form with what I have” anytime.`
+      );
+      askProjectStep();
+    };
+
+    const submitProjectDraft = async () => {
+      chatError.classList.add('hidden');
+      if (!Object.keys(projectAnswers).length) {
+        chatError.textContent = 'Share at least one detail first, or type an answer below.';
+        chatError.classList.remove('hidden');
+        return;
+      }
+      chatSend.disabled = true;
+      if (projectFinish) projectFinish.disabled = true;
+      showThinking();
+      try {
+        const response = await fetch(projectDraftUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken,
+            'X-Requested-With': 'XMLHttpRequest',
+          },
+          body: JSON.stringify({ answers: projectAnswers }),
+        });
+        const isJson = (response.headers.get('Content-Type') || '').includes('application/json');
+        const data = isJson ? await response.json() : {};
+        if (!response.ok) throw new Error(data.error || 'Could not prepare the project form.');
+        appendBubble('model', 'Opening the project create page with your answers filled in…');
+        window.location.href = data.redirect;
+      } catch (exception) {
+        chatError.textContent = exception.message || 'Could not prepare the project form.';
+        chatError.classList.remove('hidden');
+        chatSend.disabled = false;
+        if (projectFinish) projectFinish.disabled = false;
+      } finally {
+        hideThinking();
+      }
+    };
+
+    const handleProjectAnswer = async message => {
+      appendBubble('user', message);
+      chatInput.value = '';
+      if (isDoneCommand(message)) {
+        await submitProjectDraft();
+        return;
+      }
+
+      const step = PROJECT_STEPS[projectStep];
+      if (!step) {
+        await submitProjectDraft();
+        return;
+      }
+
+      if (!isSkip(message)) {
+        if (step.key === 'funding_status') {
+          const funding = normalizeFunding(message);
+          if (!['unfunded', 'partial', 'funded', 'institutional'].includes(funding)) {
+            appendBubble('model', 'Please reply with unfunded, partial, funded, institutional, or skip.');
+            return;
+          }
+          projectAnswers[step.key] = funding;
+        } else if (step.key === 'start_date' || step.key === 'end_date') {
+          if (!/^\d{4}-\d{2}-\d{2}$/.test(message.trim())) {
+            appendBubble('model', 'Please use YYYY-MM-DD, or type skip.');
+            return;
+          }
+          projectAnswers[step.key] = message.trim();
+        } else {
+          projectAnswers[step.key] = message.trim();
+        }
+      }
+
+      projectStep += 1;
+      if (projectStep >= PROJECT_STEPS.length) {
+        appendBubble('model', 'Great — I have what I need. Opening the create form now.');
+        await submitProjectDraft();
+        return;
+      }
+      askProjectStep();
+    };
 
     const appendBubble = (role, text) => {
       const isUser = role === 'user';
@@ -288,18 +483,35 @@
     };
 
     const showMode = next => {
+      if (next === 'project' && !canCreateProject) {
+        next = 'chat';
+      }
       mode = next;
       modePicker.classList.add('hidden');
       tabs.classList.remove('hidden');
       thanks.classList.add('hidden');
       setTabStyles();
-      if (mode === 'chat') {
+      if (mode === 'chat' || mode === 'project') {
         form.classList.add('hidden');
         chatPane.classList.remove('hidden');
-        ensureWelcome();
+        if (projectActions) {
+          projectActions.classList.toggle('hidden', mode !== 'project');
+        }
+        if (mode === 'project') {
+          if (!projectStarted) startProjectWizard();
+          chatInput.placeholder = 'Answer, or type skip…';
+        } else {
+          if (projectStarted) {
+            projectStarted = false;
+            chatLog.innerHTML = '';
+          }
+          chatInput.placeholder = 'Ask Sandy anything about GFR…';
+          ensureWelcome();
+        }
         chatInput.focus();
       } else {
         chatPane.classList.add('hidden');
+        if (projectActions) projectActions.classList.add('hidden');
         form.classList.remove('hidden');
         const rating = form.querySelector('input[name="rating"]');
         if (rating) rating.focus();
@@ -361,6 +573,20 @@
       const message = chatInput.value.trim();
       if (!message) return;
       chatError.classList.add('hidden');
+
+      if (mode === 'project') {
+        chatSend.disabled = true;
+        chatSend.textContent = '…';
+        try {
+          await handleProjectAnswer(message);
+        } finally {
+          chatSend.disabled = false;
+          chatSend.textContent = 'Send';
+          chatInput.focus();
+        }
+        return;
+      }
+
       appendBubble('user', message);
       chatInput.value = '';
       chatSend.disabled = true;
@@ -393,6 +619,12 @@
         chatInput.focus();
       }
     });
+
+    if (projectFinish) {
+      projectFinish.addEventListener('click', () => {
+        submitProjectDraft();
+      });
+    }
 
     form.addEventListener('submit', async event => {
       event.preventDefault();
