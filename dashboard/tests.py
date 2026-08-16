@@ -19,7 +19,10 @@ from django.utils.functional import empty
 from accounts.models import User
 from dashboard.views import _dashboard_stats
 from journals.models import Journal, Manuscript, ManuscriptStatus
-from projects.models import Project, Task, TaskStatus
+from projects.models import (
+    MemberRole, Project, ProjectApplication, ProjectMembership,
+    ReviewStatus, Task, TaskStatus,
+)
 
 
 MANIFEST_STORAGES = {
@@ -428,3 +431,94 @@ class DashboardStatsTests(TestCase):
         self.assertEqual(chart['y_max'], 7)
         self.assertGreater(chart['svg_h'], 80)
         self.assertEqual(chart['svg_h'], 20 + 7 * 10)  # = 90
+
+
+class PendingOwnerWorkTests(TestCase):
+    """The dashboard shows a pending-work section to project owners and
+    managers only, and hides it entirely when there is nothing to review."""
+
+    def setUp(self):
+        self.owner = User.objects.create_user(
+            username='proj_owner', email='owner@example.com',
+            password='StrongTestPassword!9',
+        )
+        self.member = User.objects.create_user(
+            username='plain_member', email='member@example.com',
+            password='StrongTestPassword!9',
+        )
+        self.applicant = User.objects.create_user(
+            username='wannabe', email='wannabe@example.com',
+            password='StrongTestPassword!9',
+        )
+        self.project = Project.objects.create(
+            title='Quantum study', description='About', created_by=self.owner,
+        )
+        ProjectMembership.objects.create(
+            project=self.project, user=self.owner, role=MemberRole.OWNER,
+        )
+        self.url = reverse('dashboard:home')
+
+    def _add_pending_work(self):
+        ProjectMembership.objects.create(
+            project=self.project, user=self.member, role=MemberRole.MEMBER,
+        )
+        ProjectApplication.objects.create(
+            project=self.project, applicant=self.applicant, message='Let me join',
+        )
+        Task.objects.create(
+            project=self.project, title='Write the report',
+            assigned_to=self.member,
+            submission_note='Draft ready', status=TaskStatus.IN_PROGRESS,
+            review_status=ReviewStatus.SUBMITTED,
+        )
+
+    def test_owner_sees_pending_applications_and_tasks(self):
+        self._add_pending_work()
+        self.client.force_login(self.owner)
+        response = self.client.get(self.url)
+        self.assertContains(response, 'Pending work in your projects')
+        self.assertContains(response, 'Quantum study')
+        self.assertContains(response, 'Let me join')
+        self.assertContains(response, 'Write the report')
+        self.assertContains(response, '>2<')
+
+    def test_manager_sees_the_section_too(self):
+        self._add_pending_work()
+        ProjectMembership.objects.filter(project=self.project, user=self.member).update(
+            role=MemberRole.MANAGER,
+        )
+        self.client.force_login(self.member)
+        response = self.client.get(self.url)
+        self.assertContains(response, 'Pending work in your projects')
+
+    def test_plain_member_does_not_see_the_section(self):
+        self._add_pending_work()
+        self.client.force_login(self.member)
+        response = self.client.get(self.url)
+        self.assertNotContains(response, 'Pending work in your projects')
+
+    def test_user_without_projects_does_not_see_the_section(self):
+        self._add_pending_work()
+        outsider = User.objects.create_user(
+            username='outsider', email='outsider@example.com',
+            password='StrongTestPassword!9',
+        )
+        self.client.force_login(outsider)
+        response = self.client.get(self.url)
+        self.assertNotContains(response, 'Pending work in your projects')
+
+    def test_owner_without_pending_work_sees_no_empty_section(self):
+        self.client.force_login(self.owner)
+        response = self.client.get(self.url)
+        self.assertNotContains(response, 'Pending work in your projects')
+
+    def test_reviewed_items_disappear_from_the_section(self):
+        self._add_pending_work()
+        Task.objects.filter(project=self.project).update(
+            review_status=ReviewStatus.APPROVED, status=TaskStatus.DONE,
+        )
+        self.client.force_login(self.owner)
+        response = self.client.get(self.url)
+        self.assertNotContains(response, 'Write the report')
+        self.assertContains(response, 'Pending work in your projects')
+        self.assertContains(response, '>1<')
