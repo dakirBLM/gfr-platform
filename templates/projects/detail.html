@@ -280,15 +280,25 @@
                       {% endif %}
                     </div>
 
-                    {# Action link: only assignee and managers can open detail #}
+                    {# Actions: only assignee and managers can open detail. Assignees #}
+                    {# with work still pending get View alongside Submit so they can #}
+                    {# read the task (description, files) before deciding to submit. #}
                     {% if task.assigned_to == user or is_manager %}
-                      <a href="{% url 'dashboard:project_task_detail' project.slug task.pk %}"
-                         class="shrink-0 text-[11px] font-semibold px-2 py-1 rounded
-                           {% if task.assigned_to == user and task.status != 'done' %}text-brand-700 hover:text-brand-900 hover:bg-brand-100
-                           {% else %}text-ink-500 hover:text-ink-700 hover:bg-ink-100{% endif %}
-                           transition-colors">
-                        {% if is_manager %}Edit →{% elif task.assigned_to == user and task.review_status == 'none' and task.status != 'done' %}Submit →{% else %}View →{% endif %}
-                      </a>
+                      <div class="shrink-0 flex items-center gap-1.5 flex-wrap">
+                        {% if task.assigned_to == user and task.review_status == 'none' and task.status != 'done' %}
+                          <a href="{% url 'dashboard:project_task_detail' project.slug task.pk %}"
+                             class="text-[11px] font-semibold px-2 py-1 rounded text-ink-500 hover:text-ink-700 hover:bg-ink-100 transition-colors">
+                            View
+                          </a>
+                        {% endif %}
+                        <a href="{% url 'dashboard:project_task_detail' project.slug task.pk %}"
+                           class="text-[11px] font-semibold px-2 py-1 rounded
+                             {% if task.assigned_to == user and task.status != 'done' %}text-brand-700 hover:text-brand-900 hover:bg-brand-100
+                             {% else %}text-ink-500 hover:text-ink-700 hover:bg-ink-100{% endif %}
+                             transition-colors">
+                          {% if is_manager %}Edit →{% elif task.assigned_to == user and task.review_status == 'none' and task.status != 'done' %}Submit →{% else %}View →{% endif %}
+                        </a>
+                      </div>
                     {% endif %}
                   </div>
                 </div>
