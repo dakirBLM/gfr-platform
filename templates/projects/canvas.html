@@ -69,13 +69,48 @@
 
   <section id="project-canvas"
            data-data-url="{% url 'dashboard:project_canvas_data' project.slug %}"
-           data-position-url="{% url 'dashboard:project_canvas_position' project.slug 0 %}">
+           data-position-url="{% url 'dashboard:project_canvas_position' project.slug 0 %}"
+           data-search-url="{% url 'dashboard:project_search_invitable_users' project.slug %}"
+           data-invite-url="{% url 'dashboard:project_invite_member' project.slug %}">
     <div id="canvas-board" class="canvas-board relative overflow-hidden" aria-label="Project collaboration canvas">
       <svg id="canvas-lines" class="pointer-events-none absolute inset-0 h-full w-full" aria-hidden="true"></svg>
       <div id="canvas-detail" class="canvas-detail hidden p-4" aria-live="polite"></div>
       <p class="pointer-events-none absolute bottom-4 left-5 z-10 rounded-full bg-white/90 px-3 py-1.5 text-xs text-ink-600 shadow-sm">Click a bubble to open its work message · drag a bubble to rearrange the map</p>
     </div>
   </section>
+
+  <div id="canvas-context-menu" class="hidden fixed z-50 min-w-[200px] rounded-xl border border-ink-100 bg-white py-1 shadow-2xl" role="menu">
+    <button type="button" id="ctx-add-member" role="menuitem" class="flex w-full items-center gap-2.5 px-4 py-2 text-left text-sm font-semibold text-ink-800 hover:bg-indigo-50 disabled:cursor-not-allowed disabled:opacity-45">
+      <svg class="h-4 w-4 shrink-0 text-brand-700" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"/></svg>
+      Add new member
+    </button>
+  </div>
+
+  <div id="invite-search-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-ink-900/40 p-4" role="dialog" aria-modal="true" aria-label="Invite a new member">
+    <div class="w-full max-w-sm rounded-2xl border border-ink-100 bg-white p-5 shadow-2xl">
+      <div class="flex items-center justify-between gap-3">
+        <h2 class="font-serif text-lg font-semibold text-ink-900">Invite a new member</h2>
+        <button type="button" id="invite-close" class="rounded-full p-1 text-ink-400 hover:bg-ink-100 hover:text-ink-700" aria-label="Close">
+          <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M6 6l12 12M18 6L6 18"/></svg>
+        </button>
+      </div>
+      <label class="mt-4 block">
+        <span class="text-[11px] font-bold uppercase tracking-wide text-ink-500">Invited role</span>
+        <select id="invite-role" class="mt-1 w-full rounded-lg border border-ink-200 bg-white px-3 py-2 text-sm text-ink-900 focus:border-brand-500 focus:outline-none">
+          <option value="member" selected>Member</option>
+          <option value="manager">Manager</option>
+          <option value="observer">Observer</option>
+        </select>
+      </label>
+      <label class="mt-3 block">
+        <span class="text-[11px] font-bold uppercase tracking-wide text-ink-500">Search by name</span>
+        <input type="text" id="invite-search-input" autocomplete="off" placeholder="Type at least 2 characters…"
+               class="mt-1 w-full rounded-lg border border-ink-200 px-3 py-2 text-sm text-ink-900 placeholder:text-ink-400 focus:border-brand-500 focus:outline-none">
+      </label>
+      <div id="invite-search-results" class="mt-3 max-h-64 space-y-0.5 overflow-y-auto"></div>
+      <p class="mt-3 text-xs text-ink-500">They will receive an invitation and only appear on the canvas once they accept.</p>
+    </div>
+  </div>
 </div>
 
 {{ canvas_data|json_script:'project-canvas-data' }}
@@ -275,6 +310,123 @@
         if (!next || JSON.stringify(next.members) === JSON.stringify(data.members)) return;
         data = next; render();
       }).catch(() => {}), 15000);
+// ── Right-click invite flow ──
+    // Surface: KAN-39 canvas. Action: KAN-40 invite endpoint — no duplicate
+    // invitation logic, and no bubble is created until the invitee accepts.
+    const ctxMenu = document.getElementById('canvas-context-menu');
+    const ctxAdd = document.getElementById('ctx-add-member');
+    const inviteModal = document.getElementById('invite-search-modal');
+    const inviteInput = document.getElementById('invite-search-input');
+    const inviteRole = document.getElementById('invite-role');
+    const inviteClose = document.getElementById('invite-close');
+    const inviteResults = document.getElementById('invite-search-results');
+    let searchTimer = null;
+
+    const csrfToken = () => document.cookie.match(/(?:^|; )csrftoken=([^;]*)/)?.[1] || '';
+    const toast = message => {
+      let node = document.getElementById('canvas-toast');
+      if (!node) {
+        node = el('div', 'pointer-events-none fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-full bg-ink-900 px-4 py-2 text-sm font-medium text-white shadow-xl');
+        node.id = 'canvas-toast';
+        document.body.append(node);
+      }
+      node.textContent = message;
+      clearTimeout(toast.timer);
+      toast.timer = setTimeout(() => node.remove(), 2600);
+    };
+    const closeInvite = () => {
+      inviteModal.classList.add('hidden');
+      inviteResults.replaceChildren();
+      clearTimeout(searchTimer);
+    };
+    const openInvite = () => {
+      ctxMenu.classList.add('hidden');
+      inviteInput.value = '';
+      inviteRole.value = 'member';
+      inviteResults.replaceChildren();
+      inviteModal.classList.remove('hidden');
+      inviteInput.focus();
+    };
+
+    board.addEventListener('contextmenu', event => {
+      if (!data.project.can_invite) return;
+      if (event.target.closest('.canvas-node') || event.target.closest('.canvas-detail')) return;
+      event.preventDefault();
+      ctxAdd.disabled = !data.project.is_open_for_members;
+      ctxAdd.title = data.project.is_open_for_members ? '' : 'This project is not accepting new members';
+      ctxMenu.classList.remove('hidden');
+      ctxMenu.style.left = `${Math.min(event.clientX, window.innerWidth - 210)}px`;
+      ctxMenu.style.top = `${Math.min(event.clientY, window.innerHeight - 64)}px`;
+    });
+    document.addEventListener('pointerdown', event => {
+      if (!ctxMenu.classList.contains('hidden') && !ctxMenu.contains(event.target)) ctxMenu.classList.add('hidden');
+    });
+    ctxAdd.addEventListener('click', openInvite);
+    inviteClose.addEventListener('click', closeInvite);
+    inviteModal.addEventListener('pointerdown', event => { if (event.target === inviteModal) closeInvite(); });
+    document.addEventListener('keydown', event => {
+      if (event.key !== 'Escape') return;
+      ctxMenu.classList.add('hidden');
+      closeInvite();
+    });
+
+    inviteInput.addEventListener('input', () => {
+      clearTimeout(searchTimer);
+      const query = inviteInput.value.trim();
+      inviteResults.replaceChildren();
+      if (query.length < 2) return;
+      searchTimer = setTimeout(() => searchUsers(query), 300);
+    });
+
+    const searchUsers = async query => {
+      try {
+        const response = await fetch(`${canvas.dataset.searchUrl}?q=${encodeURIComponent(query)}`, {
+          credentials: 'same-origin', headers: { 'Accept': 'application/json' },
+        });
+        if (!response.ok) return;
+        renderInviteResults(await response.json());
+      } catch (_) {}
+    };
+
+    const renderInviteResults = payload => {
+      inviteResults.replaceChildren();
+      if (!payload.users.length) {
+        inviteResults.append(el('p', 'px-2 py-2 text-center text-xs text-ink-500', 'No matching users found.'));
+        return;
+      }
+      payload.users.forEach(user => {
+        const item = el('button', 'flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left hover:bg-indigo-50');
+        item.type = 'button';
+        const image = el('img', 'h-8 w-8 shrink-0 rounded-full border border-ink-100 bg-white object-cover');
+        image.src = user.avatar; image.alt = '';
+        const info = el('span', 'min-w-0 flex-1');
+        info.append(el('span', 'block truncate text-sm font-semibold text-ink-900', user.name));
+        info.append(el('span', 'block truncate text-xs text-ink-500', `@${user.username}`));
+        item.append(image, info);
+        item.addEventListener('click', () => sendInvite(user.id));
+        inviteResults.append(item);
+      });
+    };
+
+    const sendInvite = async userId => {
+      if (ctxAdd.disabled) return;
+      try {
+        const response = await fetch(canvas.dataset.inviteUrl, {
+          method: 'POST', credentials: 'same-origin',
+          headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken() },
+          body: JSON.stringify({ user: userId, role: inviteRole.value }),
+        });
+        const payload = await response.json().catch(() => ({}));
+        toast(payload.message || (response.ok ? 'Invitation sent.' : 'Could not send the invitation.'));
+        if (response.ok && payload.ok) {
+          inviteInput.value = '';
+          closeInvite();
+        }
+      } catch (_) {
+        toast('Could not send the invitation.');
+      }
+    };
+
     render();
   })();
 </script>
