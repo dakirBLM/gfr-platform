@@ -452,8 +452,8 @@ def _pending_owner_work(user):
     from collections import OrderedDict
 
     from projects.models import (
-        MemberRole, Milestone, ProjectApplication, ProjectMembership,
-        ReviewStatus, Task,
+        InvitationStatus, MemberRole, Milestone, ProjectApplication, ProjectInvitation,
+        ProjectMembership, ReviewStatus, Task,
     )
 
     managed_project_ids = list(
@@ -482,26 +482,38 @@ def _pending_owner_work(user):
         .select_related('project')
         .order_by('project__title', 'due_date')
     )
+    pending_invitations = list(
+        ProjectInvitation.objects
+        .filter(project_id__in=managed_project_ids, status=InvitationStatus.PENDING)
+        .select_related('invitee', 'project')
+        .order_by('-created_at')
+    )
 
     projects = OrderedDict()
 
     for app in pending_apps:
         pid = app.project_id
         if pid not in projects:
-            projects[pid] = {'project': app.project, 'applications': [], 'tasks': [], 'milestones': []}
+            projects[pid] = {'project': app.project, 'applications': [], 'tasks': [], 'milestones': [], 'invitations': []}
         projects[pid]['applications'].append(app)
 
     for task in submitted_tasks:
         pid = task.project_id
         if pid not in projects:
-            projects[pid] = {'project': task.project, 'applications': [], 'tasks': [], 'milestones': []}
+            projects[pid] = {'project': task.project, 'applications': [], 'tasks': [], 'milestones': [], 'invitations': []}
         projects[pid]['tasks'].append(task)
 
     for ms in upcoming_milestones:
         pid = ms.project_id
         if pid not in projects:
-            projects[pid] = {'project': ms.project, 'applications': [], 'tasks': [], 'milestones': []}
+            projects[pid] = {'project': ms.project, 'applications': [], 'tasks': [], 'milestones': [], 'invitations': []}
         projects[pid]['milestones'].append(ms)
+
+    for inv in pending_invitations:
+        pid = inv.project_id
+        if pid not in projects:
+            projects[pid] = {'project': inv.project, 'applications': [], 'tasks': [], 'milestones': [], 'invitations': []}
+        projects[pid]['invitations'].append(inv)
 
     result = list(projects.values())
 
@@ -509,6 +521,7 @@ def _pending_owner_work(user):
         entry['task_count'] = len(entry['tasks'])
         entry['application_count'] = len(entry['applications'])
         entry['milestone_count'] = len(entry['milestones'])
+        entry['invitation_count'] = len(entry['invitations'])
         entry['overdue_count'] = sum(
             1 for t in entry['tasks'] if t.is_overdue
         ) + sum(
@@ -522,8 +535,20 @@ def _pending_work_total(pending_work):
     if not pending_work:
         return 0
     return sum(
-        len(e['applications']) + len(e['tasks']) + len(e['milestones'])
+        len(e['applications']) + len(e['tasks']) + len(e['milestones']) + len(e['invitations'])
         for e in pending_work
+    )
+
+
+def _received_invitations(user):
+    """Invitations still awaiting a response from the given user."""
+    from projects.models import InvitationStatus, ProjectInvitation
+
+    return (
+        ProjectInvitation.objects
+        .filter(invitee=user, status=InvitationStatus.PENDING)
+        .select_related('project', 'invited_by')
+        .order_by('-created_at')
     )
 
 
@@ -544,6 +569,7 @@ class DashboardHomeView(LoginRequiredMixin, TemplateView):
         pending_work = _pending_owner_work(self.request.user)
         ctx['pending_work'] = pending_work
         ctx['pending_work_total'] = _pending_work_total(pending_work)
+        ctx['received_invitations'] = list(_received_invitations(self.request.user))
         ctx['quick_actions'] = [
             {'title': 'Submit a manuscript', 'desc': 'Send your paper to a GFR journal.',  'href': reverse('dashboard:journal_list'),        'icon': 'upload'},
             {'title': 'Start a project',     'desc': 'Form a team and define milestones.', 'href': reverse('dashboard:project_create'),      'icon': 'flag'},
