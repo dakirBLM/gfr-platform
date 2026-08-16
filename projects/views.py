@@ -113,7 +113,18 @@ def create_project(request):
         messages.error(request, 'Your role does not allow creating projects.')
         return redirect('dashboard:project_list')
 
-    form = ProjectForm(request.POST or None, exclude_user=request.user)
+    from projects.sandy_draft import form_initial_from_draft, pop_draft
+
+    sandy_initial = {}
+    sandy_member_ids = set()
+    if request.method == 'GET':
+        sandy_initial, sandy_member_ids = form_initial_from_draft(pop_draft(request.session))
+
+    form = ProjectForm(
+        request.POST or None,
+        initial=sandy_initial or None,
+        exclude_user=request.user,
+    )
     if request.method == 'POST' and form.is_valid():
         project = form.save(commit=False)
         project.created_by = request.user
@@ -132,7 +143,7 @@ def create_project(request):
         messages.success(request, f'Project "{project.title}" created.')
         return redirect('dashboard:project_detail', slug=project.slug)
 
-    selected_initial_member_ids = set()
+    selected_initial_member_ids = set(sandy_member_ids)
     for value in form['initial_members'].value() or []:
         try:
             selected_initial_member_ids.add(int(value))
@@ -142,6 +153,7 @@ def create_project(request):
         'form': form,
         'initial_member_candidates': form.fields['initial_members'].queryset,
         'selected_initial_member_ids': selected_initial_member_ids,
+        'prefilled_by_sandy': bool(sandy_initial or sandy_member_ids),
         'active_section': 'projects',
     })
 

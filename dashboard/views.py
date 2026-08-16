@@ -179,6 +179,37 @@ def sandy_chat(request):
 
 @login_required
 @require_POST
+def sandy_project_draft(request):
+    """Store Sandy's guided project answers, then send the user to create."""
+    if not request.user.can_create_project:
+        return JsonResponse(
+            {'error': 'Your role cannot create projects. Only academic guarantors can.'},
+            status=403,
+        )
+
+    try:
+        payload = json.loads(request.body.decode('utf-8') or '{}')
+    except (UnicodeDecodeError, json.JSONDecodeError):
+        return JsonResponse({'error': 'Invalid project draft.'}, status=400)
+
+    from projects.sandy_draft import build_draft, draft_is_usable, store_draft
+
+    draft = build_draft(payload.get('answers') or payload, user=request.user)
+    if not draft_is_usable(draft):
+        return JsonResponse(
+            {'error': 'Add at least one project detail before opening the create form.'},
+            status=400,
+        )
+
+    store_draft(request.session, draft)
+    return JsonResponse({
+        'redirect': reverse('dashboard:project_create'),
+        'fields': sorted(draft.keys()),
+    })
+
+
+@login_required
+@require_POST
 def submit_sandy_feedback(request):
     """Validate feedback and forward it to Make without exposing its webhook."""
     try:
