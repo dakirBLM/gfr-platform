@@ -1,6 +1,7 @@
 from django.conf import settings
 from django.db import models
 from django.urls import reverse
+from django.utils import timezone
 from django.utils.text import slugify
 
 
@@ -159,6 +160,12 @@ class Task(models.Model):
     def is_submitted(self):
         return self.review_status == ReviewStatus.SUBMITTED
 
+    @property
+    def is_overdue(self):
+        if self.due_date and self.status != TaskStatus.DONE:
+            return self.due_date < timezone.localdate()
+        return False
+
 
 class ProjectApplication(models.Model):
     """An application stays private until the guarantor explicitly accepts it."""
@@ -194,3 +201,9 @@ class Milestone(models.Model):
 
     def __str__(self):
         return self.title
+
+    @property
+    def is_overdue(self):
+        if self.due_date and not self.completed:
+            return self.due_date < timezone.localdate()
+        return False

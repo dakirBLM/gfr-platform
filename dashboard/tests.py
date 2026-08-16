@@ -20,8 +20,8 @@ from accounts.models import User
 from dashboard.views import _dashboard_stats
 from journals.models import Journal, Manuscript, ManuscriptStatus
 from projects.models import (
-    MemberRole, Project, ProjectApplication, ProjectMembership,
-    ReviewStatus, Task, TaskStatus,
+    MemberRole, Milestone, Project, ProjectApplication, ProjectMembership,
+    ReviewStatus, Task, TaskPriority, TaskStatus,
 )
 
 
@@ -522,3 +522,65 @@ class PendingOwnerWorkTests(TestCase):
         self.assertNotContains(response, 'Write the report')
         self.assertContains(response, 'Pending work in your projects')
         self.assertContains(response, '>1<')
+
+    def test_pending_section_groups_by_project(self):
+        self._add_pending_work()
+        project2 = Project.objects.create(
+            title='AI research', description='About AI', created_by=self.owner,
+        )
+        ProjectMembership.objects.create(
+            project=project2, user=self.owner, role=MemberRole.OWNER,
+        )
+        Task.objects.create(
+            project=project2, title='Build prototype',
+            assigned_to=self.member, status=TaskStatus.IN_PROGRESS,
+            review_status=ReviewStatus.SUBMITTED,
+        )
+        self.client.force_login(self.owner)
+        response = self.client.get(self.url)
+        self.assertContains(response, 'Quantum study')
+        self.assertContains(response, 'AI research')
+        self.assertContains(response, 'Write the report')
+        self.assertContains(response, 'Build prototype')
+
+    def test_pending_section_shows_priority_badges(self):
+        self._add_pending_work()
+        Task.objects.filter(project=self.project, title='Write the report').update(
+            priority=TaskPriority.HIGH,
+        )
+        self.client.force_login(self.owner)
+        response = self.client.get(self.url)
+        self.assertContains(response, 'high')
+
+    def test_pending_section_shows_overdue_tasks(self):
+        self._add_pending_work()
+        from datetime import date
+        Task.objects.filter(project=self.project, title='Write the report').update(
+            due_date=date(2020, 1, 1),
+        )
+        self.client.force_login(self.owner)
+        response = self.client.get(self.url)
+        self.assertContains(response, 'overdue')
+
+    def test_pending_section_shows_milestones(self):
+        self._add_pending_work()
+        Milestone.objects.create(
+            project=self.project, title='Final review',
+            due_date=timezone.localdate(),
+        )
+        self.client.force_login(self.owner)
+        response = self.client.get(self.url)
+        self.assertContains(response, 'Final review')
+        self.assertContains(response, 'Milestones')
+
+    def test_overdue_milestone_appears_in_section(self):
+        self._add_pending_work()
+        from datetime import date
+        Milestone.objects.create(
+            project=self.project, title='Past deadline',
+            due_date=date(2020, 6, 1),
+        )
+        self.client.force_login(self.owner)
+        response = self.client.get(self.url)
+        self.assertContains(response, 'Past deadline')
+        self.assertContains(response, 'overdue')
