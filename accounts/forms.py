@@ -24,7 +24,7 @@ def _apply_input_css(form: forms.Form, skip: set[str] = frozenset()) -> None:
         if isinstance(widget, (forms.CheckboxInput, forms.FileInput, forms.ClearableFileInput)):
             continue
         css = INPUT_CSS
-        if widget.input_type == 'password':
+        if getattr(widget, 'input_type', None) == 'password':
             # Extra right padding so the visibility toggle never overlaps the text.
             css += ' pr-10'
         existing = widget.attrs.get('class', '')

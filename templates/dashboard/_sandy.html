@@ -12,11 +12,24 @@
     from { opacity: 0; transform: translateY(12px) scale(.96); }
     to { opacity: 1; transform: translateY(0) scale(1); }
   }
+  @keyframes sandy-typing {
+    0%, 60%, 100% { transform: translateY(0); opacity: .35; }
+    30% { transform: translateY(-4px); opacity: 1; }
+  }
   .sandy-float { animation: sandy-float 3.2s ease-in-out infinite; }
   .sandy-ring { animation: sandy-ring 2.2s ease-out infinite; }
   .sandy-arrive { animation: sandy-arrive .22s ease-out both; }
+  .sandy-typing-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 999px;
+    background: #64748b;
+    animation: sandy-typing 1.2s ease-in-out infinite;
+  }
+  .sandy-typing-dot:nth-child(2) { animation-delay: .15s; }
+  .sandy-typing-dot:nth-child(3) { animation-delay: .3s; }
   @media (prefers-reduced-motion: reduce) {
-    .sandy-float, .sandy-ring, .sandy-arrive { animation: none; }
+    .sandy-float, .sandy-ring, .sandy-arrive, .sandy-typing-dot { animation: none; }
   }
   #sandy-chat-log::-webkit-scrollbar { width: 6px; }
   #sandy-chat-log::-webkit-scrollbar-thumb { background: #d5dce5; border-radius: 999px; }
@@ -24,24 +37,39 @@
 
 <aside id="sandy-widget" class="fixed bottom-5 right-5 z-50 flex flex-col items-end gap-3"
        data-chat-url="{% url 'dashboard:sandy_chat' %}"
-       data-user-name="{{ user.display_name|escape }}">
+       data-user-name="{{ user.display_name|escape }}"
+       data-user-avatar="{{ user.avatar_url }}"
+       data-sandy-avatar="{% static 'img/sandy-mascot.png' %}">
   <div id="sandy-prompt"
-       class="sandy-arrive max-w-[17rem] rounded-2xl rounded-br-sm border border-brand-100 bg-white px-4 py-3 shadow-xl shadow-brand-900/10">
-    <button type="button" id="sandy-prompt-open" class="flex items-center gap-3 text-left"
-            aria-expanded="false" aria-controls="sandy-panel">
+       class="sandy-arrive max-w-[17rem] rounded-2xl border border-brand-100 bg-white px-4 py-3 shadow-xl shadow-brand-900/10">
+    <div class="flex items-center gap-3">
       <img src="{% static 'img/sandy-mascot.png' %}" alt=""
-           class="h-10 w-10 shrink-0 rounded-full border border-brand-100 bg-white object-cover shadow-sm">
+           class="h-9 w-9 shrink-0 rounded-full border border-brand-100 bg-white object-cover shadow-sm">
       <span>
         <span class="block text-xs font-bold text-brand-700">Sandy</span>
-        <span class="mt-0.5 block text-sm leading-snug text-ink-700">
-          Need a hand or a review? Tap to chat with me.
-        </span>
+        <span class="block text-[11px] leading-snug text-ink-600">Chat with me, or leave a review — your call.</span>
       </span>
-    </button>
+    </div>
+    <div class="mt-3 grid grid-cols-2 gap-2">
+      <button type="button" data-sandy-quick="chat"
+              class="flex items-center justify-center gap-1.5 rounded-xl bg-brand-700 px-2 py-2 text-xs font-semibold text-white transition hover:bg-brand-800 focus:outline-none focus:ring-2 focus:ring-brand-300">
+        <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M8 10h8M8 14h5M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+        </svg>
+        Chat
+      </button>
+      <button type="button" data-sandy-quick="review"
+              class="flex items-center justify-center gap-1.5 rounded-xl bg-teal-600 px-2 py-2 text-xs font-semibold text-white transition hover:bg-teal-700 focus:outline-none focus:ring-2 focus:ring-teal-300">
+        <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M11.05 2.93l1.08 2.18 2.41.35-1.74 1.7.41 2.4-2.16-1.14-2.16 1.14.41-2.4-1.74-1.7 2.41-.35 1.08-2.18zM5 14h14M5 18h10"/>
+        </svg>
+        Review
+      </button>
+    </div>
   </div>
 
   <section id="sandy-panel"
-           class="hidden sandy-arrive w-[min(22rem,calc(100vw-2.5rem))] overflow-hidden rounded-2xl border border-ink-100 bg-white shadow-2xl shadow-brand-900/20"
+           class="hidden sandy-arrive w-[min(22rem,calc(100vw-2.5rem))] max-h-[calc(100vh-3rem)] overflow-x-hidden overflow-y-auto rounded-2xl border border-ink-100 bg-white shadow-2xl shadow-brand-900/20"
            aria-labelledby="sandy-title">
     <div class="flex items-center justify-between bg-gradient-to-r from-brand-800 to-brand-600 px-5 py-4 text-white">
       <div class="flex items-center gap-3">
@@ -62,7 +90,7 @@
     </div>
 
     <div id="sandy-mode-picker" class="space-y-3 p-5">
-      <p class="text-sm text-ink-600">How can I help you today?</p>
+      <p class="text-sm text-ink-600">What would you like to do?</p>
       <button type="button" data-sandy-mode="chat"
               class="flex w-full items-center gap-3 rounded-xl border border-ink-100 bg-ink-50 px-4 py-3 text-left transition hover:border-brand-300 hover:bg-brand-50">
         <span class="flex h-10 w-10 items-center justify-center rounded-full bg-brand-700 text-white">
@@ -103,9 +131,9 @@
       <p id="sandy-chat-error" class="hidden mx-4 mb-2 rounded-lg bg-rose-50 px-3 py-2 text-xs text-rose-700" role="alert"></p>
       <form id="sandy-chat-form" class="flex items-end gap-2 border-t border-ink-100 p-3">
         <label class="sr-only" for="sandy-chat-input">Message Sandy</label>
-        <textarea id="sandy-chat-input" rows="1" maxlength="1500" required
+        <textarea id="sandy-chat-input" rows="2" maxlength="1500" required
                   placeholder="Ask Sandy anything about GFR…"
-                  class="max-h-24 min-h-[2.5rem] flex-1 resize-none rounded-xl border border-ink-200 bg-ink-50 px-3 py-2 text-sm focus:border-brand-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/20"></textarea>
+                  class="max-h-32 min-h-[3rem] flex-1 resize-none rounded-xl border border-ink-200 bg-ink-50 px-3 py-2.5 text-sm focus:border-brand-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/20"></textarea>
         <button type="submit" id="sandy-chat-send"
                 class="rounded-xl bg-brand-700 px-3 py-2.5 text-sm font-semibold text-white hover:bg-brand-800 disabled:cursor-wait disabled:opacity-60"
                 aria-label="Send message">
@@ -114,7 +142,7 @@
       </form>
     </div>
 
-    <form id="sandy-form" action="{% url 'dashboard:sandy_feedback' %}" method="post" class="hidden space-y-5 p-5">
+    <form id="sandy-form" action="{% url 'dashboard:sandy_feedback' %}" method="post" class="hidden space-y-3 p-4">
       {% csrf_token %}
       <fieldset>
         <legend class="text-sm font-semibold text-ink-900">How is your experience?</legend>
@@ -124,7 +152,7 @@
             <label class="cursor-pointer">
               <input type="radio" name="rating" value="{{ score }}" class="peer sr-only"
                      aria-label="Rating {{ score }} out of 5" required>
-              <span class="flex h-10 items-center justify-center rounded-xl border border-ink-200 text-sm font-bold text-ink-600 transition hover:-translate-y-0.5 hover:border-brand-400 hover:text-brand-700 peer-checked:border-brand-600 peer-checked:bg-brand-600 peer-checked:text-white peer-focus-visible:ring-2 peer-focus-visible:ring-brand-400 peer-focus-visible:ring-offset-2">
+              <span class="flex h-8 items-center justify-center rounded-xl border border-ink-200 text-sm font-bold text-ink-600 transition hover:-translate-y-0.5 hover:border-brand-400 hover:text-brand-700 peer-checked:border-brand-600 peer-checked:bg-brand-600 peer-checked:text-white peer-focus-visible:ring-2 peer-focus-visible:ring-brand-400 peer-focus-visible:ring-offset-2">
                 {{ score }}
               </span>
             </label>
@@ -135,13 +163,13 @@
       <label class="block">
         <span class="text-sm font-semibold text-ink-900">Any bugs?</span>
         <textarea name="bugs" rows="2" maxlength="2000" placeholder="Tell Sandy what went wrong…"
-                  class="mt-2 w-full resize-none rounded-xl border border-ink-200 bg-ink-50 px-3 py-2.5 text-sm focus:border-brand-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/20"></textarea>
+                  class="mt-2 w-full resize-none rounded-xl border border-ink-200 bg-ink-50 px-3 py-2 text-sm focus:border-brand-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/20"></textarea>
       </label>
 
       <label class="block">
         <span class="text-sm font-semibold text-ink-900">What features would you like?</span>
         <textarea name="features" rows="2" maxlength="2000" placeholder="Share an idea for GFR…"
-                  class="mt-2 w-full resize-none rounded-xl border border-ink-200 bg-ink-50 px-3 py-2.5 text-sm focus:border-brand-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/20"></textarea>
+                  class="mt-2 w-full resize-none rounded-xl border border-ink-200 bg-ink-50 px-3 py-2 text-sm focus:border-brand-500 focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/20"></textarea>
       </label>
 
       <p id="sandy-error" class="hidden rounded-lg bg-rose-50 px-3 py-2 text-xs text-rose-700" role="alert"></p>
@@ -163,12 +191,12 @@
   </section>
 
   <button type="button" id="sandy-bubble"
-          class="sandy-float relative flex h-16 w-16 items-center justify-center rounded-full bg-white p-1 text-white shadow-xl shadow-brand-800/30 transition hover:scale-105 focus:outline-none focus:ring-4 focus:ring-brand-200"
+          class="sandy-float relative flex h-20 w-20 items-center justify-center rounded-full bg-white p-1.5 text-white shadow-2xl shadow-brand-800/40 transition hover:scale-105 focus:outline-none focus:ring-4 focus:ring-brand-200"
           aria-label="Open Sandy" aria-expanded="false" aria-controls="sandy-panel">
     <span class="sandy-ring absolute inset-0 rounded-full border-2 border-brand-400"></span>
     <img src="{% static 'img/sandy-mascot.png' %}" alt=""
          class="relative h-full w-full rounded-full object-cover">
-    <span class="absolute -right-0.5 -top-0.5 h-4 w-4 rounded-full border-2 border-white bg-emerald-400"></span>
+    <span class="absolute -right-0.5 -top-0.5 h-4.5 w-4.5 rounded-full border-2 border-white bg-emerald-400"></span>
   </button>
 </aside>
 
@@ -179,7 +207,6 @@
 
     const bubble = document.getElementById('sandy-bubble');
     const prompt = document.getElementById('sandy-prompt');
-    const promptOpen = document.getElementById('sandy-prompt-open');
     const panel = document.getElementById('sandy-panel');
     const modePicker = document.getElementById('sandy-mode-picker');
     const tabs = document.getElementById('sandy-tabs');
@@ -195,29 +222,58 @@
     const submit = document.getElementById('sandy-submit');
     const chatUrl = widget.dataset.chatUrl;
     const userName = widget.dataset.userName || 'there';
+    const userAvatar = widget.dataset.userAvatar || '';
+    const sandyAvatar = widget.dataset.sandyAvatar;
     const csrfToken = form.querySelector('[name=csrfmiddlewaretoken]').value;
+    const sandyAvatarHTML = `<img src="${sandyAvatar}" alt="Sandy" class="h-7 w-7 shrink-0 rounded-full border border-brand-100 bg-white object-cover shadow-sm self-end">`;
+    const userAvatarHTML = `<img src="${userAvatar}" alt="" class="h-7 w-7 shrink-0 rounded-full border border-ink-100 bg-white object-cover self-end">`;
 
     let mode = null;
     const history = [];
 
     const appendBubble = (role, text) => {
+      const isUser = role === 'user';
       const row = document.createElement('div');
-      row.className = role === 'user' ? 'flex justify-end' : 'flex justify-start';
+      row.className = isUser ? 'flex justify-end gap-2' : 'flex justify-start gap-2';
       const bubbleEl = document.createElement('div');
-      bubbleEl.className = role === 'user'
-        ? 'max-w-[85%] rounded-2xl rounded-br-sm bg-brand-700 px-3 py-2 text-sm text-white'
-        : 'max-w-[85%] rounded-2xl rounded-bl-sm bg-ink-50 px-3 py-2 text-sm text-ink-800';
+      bubbleEl.className = isUser
+        ? 'max-w-[75%] rounded-2xl rounded-br-sm bg-brand-700 px-3 py-2 text-sm text-white'
+        : 'max-w-[75%] rounded-2xl rounded-bl-sm bg-ink-50 px-3 py-2 text-sm text-ink-800';
       bubbleEl.textContent = text;
-      row.appendChild(bubbleEl);
+      if (isUser) {
+        row.appendChild(bubbleEl);
+        row.insertAdjacentHTML('beforeend', userAvatarHTML);
+      } else {
+        row.insertAdjacentHTML('afterbegin', sandyAvatarHTML);
+        row.appendChild(bubbleEl);
+      }
       chatLog.appendChild(row);
       chatLog.scrollTop = chatLog.scrollHeight;
+    };
+
+    const showThinking = () => {
+      const row = document.createElement('div');
+      row.id = 'sandy-thinking';
+      row.className = 'flex justify-start gap-2';
+      row.setAttribute('aria-label', 'Sandy is thinking');
+      row.innerHTML = sandyAvatarHTML
+        + '<div class="flex items-center gap-1 rounded-2xl rounded-bl-sm bg-ink-50 px-4 py-3">'
+        + '<span class="sandy-typing-dot"></span><span class="sandy-typing-dot"></span>'
+        + '<span class="sandy-typing-dot"></span></div>';
+      chatLog.appendChild(row);
+      chatLog.scrollTop = chatLog.scrollHeight;
+    };
+
+    const hideThinking = () => {
+      const row = document.getElementById('sandy-thinking');
+      if (row) row.remove();
     };
 
     const ensureWelcome = () => {
       if (chatLog.childElementCount) return;
       appendBubble(
         'model',
-        `Hi ${userName.split(' ')[0]}! I'm Sandy. Ask me how GFR works for your role — journals, projects, reviews, messaging, anything.`
+        `Hi ${userName.split(' ')[0]}! I'm Sandy. Ask me how GFR works for your role — journals, projects, reviews, messaging, anything. You can also switch to Review to share feedback.`
       );
     };
 
@@ -254,7 +310,6 @@
       panel.classList.remove('hidden');
       prompt.classList.add('hidden');
       bubble.setAttribute('aria-expanded', 'true');
-      promptOpen.setAttribute('aria-expanded', 'true');
       if (!mode) {
         modePicker.classList.remove('hidden');
         tabs.classList.add('hidden');
@@ -272,12 +327,16 @@
     const close = () => {
       panel.classList.add('hidden');
       bubble.setAttribute('aria-expanded', 'false');
-      promptOpen.setAttribute('aria-expanded', 'false');
       bubble.focus();
     };
 
     bubble.addEventListener('click', () => panel.classList.contains('hidden') ? open() : close());
-    promptOpen.addEventListener('click', open);
+    prompt.querySelectorAll('[data-sandy-quick]').forEach(button => {
+      button.addEventListener('click', () => {
+        if (panel.classList.contains('hidden')) open();
+        showMode(button.dataset.sandyQuick);
+      });
+    });
     document.getElementById('sandy-close').addEventListener('click', close);
     document.addEventListener('keydown', event => {
       if (event.key === 'Escape' && !panel.classList.contains('hidden')) close();
@@ -306,6 +365,7 @@
       chatInput.value = '';
       chatSend.disabled = true;
       chatSend.textContent = '…';
+      showThinking();
       try {
         const response = await fetch(chatUrl, {
           method: 'POST',
@@ -327,6 +387,7 @@
         chatError.textContent = exception.message || 'Sandy could not reply. Please try again.';
         chatError.classList.remove('hidden');
       } finally {
+        hideThinking();
         chatSend.disabled = false;
         chatSend.textContent = 'Send';
         chatInput.focus();

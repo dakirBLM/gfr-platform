@@ -17,6 +17,7 @@ build/
 
 # Django
 staticfiles/
+media/
 *.log
 
 # Keep the shared demo database in git (intentional for this project).

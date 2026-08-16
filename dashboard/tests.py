@@ -83,10 +83,16 @@ class SandyFeedbackTests(TestCase):
     def test_dashboard_includes_sandy_widget(self):
         response = self.client.get(reverse('dashboard:home'))
         self.assertContains(response, 'id="sandy-widget"')
-        self.assertContains(response, 'Need a hand or a review?')
+        self.assertContains(response, 'Chat with me, or leave a review — your call.')
         self.assertContains(response, 'Chat with Sandy')
         self.assertContains(response, 'Leave a review')
         self.assertContains(response, reverse('dashboard:sandy_chat'))
+        # Both entry points are visible before the panel opens.
+        self.assertContains(response, 'data-sandy-quick="chat"')
+        self.assertContains(response, 'data-sandy-quick="review"')
+        self.assertContains(response, 'img/sandy-mascot.png')
+        # The chat shows Sandy's avatar next to her messages.
+        self.assertContains(response, 'data-sandy-avatar=')
 
     def test_rating_is_required_and_validated(self):
         response = self.client.post(self.url, {'rating': '8'})
@@ -200,6 +206,8 @@ class SandyChatTests(TestCase):
         body = json.loads(request.data)
         system_text = body['systemInstruction']['parts'][0]['text']
         self.assertIn('Global Forum for Researchers', system_text)
+        # Sandy is a female AI assistant, not the old beaver mascot.
+        self.assertNotIn('beaver', system_text.lower())
         self.assertIn('Lena Vogel', system_text)
         self.assertIn('Researcher', system_text)
         self.assertIn('submit manuscripts', system_text)
