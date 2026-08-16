@@ -441,6 +441,92 @@ def _my_open_tasks(user):
     )
 
 
+def _pending_owner_work(user):
+    """Pending decisions in projects the user owns or manages.
+
+    Returns None when the user has no management role anywhere, so the
+    dashboard section never renders for regular members. Otherwise a list
+    of dicts grouped by project, each containing applications, tasks, and
+    milestones awaiting attention.
+    """
+    from collections import OrderedDict
+
+    from projects.models import (
+        MemberRole, Milestone, ProjectApplication, ProjectMembership,
+        ReviewStatus, Task,
+    )
+
+    managed_project_ids = list(
+        ProjectMembership.objects
+        .filter(user=user, role__in=[MemberRole.OWNER, MemberRole.MANAGER])
+        .values_list('project_id', flat=True)
+    )
+    if not managed_project_ids:
+        return None
+
+    pending_apps = list(
+        ProjectApplication.objects
+        .filter(project_id__in=managed_project_ids, status=ProjectApplication.Status.PENDING)
+        .select_related('applicant', 'project')
+        .order_by('-created_at')
+    )
+    submitted_tasks = list(
+        Task.objects
+        .filter(project_id__in=managed_project_ids, review_status=ReviewStatus.SUBMITTED)
+        .select_related('project', 'assigned_to', 'section')
+        .order_by('project__title', 'submitted_at')
+    )
+    upcoming_milestones = list(
+        Milestone.objects
+        .filter(project_id__in=managed_project_ids, completed=False)
+        .select_related('project')
+        .order_by('project__title', 'due_date')
+    )
+
+    projects = OrderedDict()
+
+    for app in pending_apps:
+        pid = app.project_id
+        if pid not in projects:
+            projects[pid] = {'project': app.project, 'applications': [], 'tasks': [], 'milestones': []}
+        projects[pid]['applications'].append(app)
+
+    for task in submitted_tasks:
+        pid = task.project_id
+        if pid not in projects:
+            projects[pid] = {'project': task.project, 'applications': [], 'tasks': [], 'milestones': []}
+        projects[pid]['tasks'].append(task)
+
+    for ms in upcoming_milestones:
+        pid = ms.project_id
+        if pid not in projects:
+            projects[pid] = {'project': ms.project, 'applications': [], 'tasks': [], 'milestones': []}
+        projects[pid]['milestones'].append(ms)
+
+    result = list(projects.values())
+
+    for entry in result:
+        entry['task_count'] = len(entry['tasks'])
+        entry['application_count'] = len(entry['applications'])
+        entry['milestone_count'] = len(entry['milestones'])
+        entry['overdue_count'] = sum(
+            1 for t in entry['tasks'] if t.is_overdue
+        ) + sum(
+            1 for m in entry['milestones'] if m.is_overdue
+        )
+
+    return result
+
+
+def _pending_work_total(pending_work):
+    if not pending_work:
+        return 0
+    return sum(
+        len(e['applications']) + len(e['tasks']) + len(e['milestones'])
+        for e in pending_work
+    )
+
+
 class DashboardHomeView(LoginRequiredMixin, TemplateView):
     template_name = 'dashboard/home.html'
 
@@ -455,6 +541,9 @@ class DashboardHomeView(LoginRequiredMixin, TemplateView):
         ctx['feed_has_more'] = get_feed_posts(self.request.user, limit=6).count() > 5
         ctx['my_tasks'] = _my_open_tasks(self.request.user)
         ctx['open_task_count'] = ctx['my_tasks'].count()
+        pending_work = _pending_owner_work(self.request.user)
+        ctx['pending_work'] = pending_work
+        ctx['pending_work_total'] = _pending_work_total(pending_work)
         ctx['quick_actions'] = [
             {'title': 'Submit a manuscript', 'desc': 'Send your paper to a GFR journal.',  'href': reverse('dashboard:journal_list'),        'icon': 'upload'},
             {'title': 'Start a project',     'desc': 'Form a team and define milestones.', 'href': reverse('dashboard:project_create'),      'icon': 'flag'},
