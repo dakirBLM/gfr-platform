@@ -88,6 +88,10 @@ class ProjectMembership(models.Model):
         settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='project_memberships',
     )
     role = models.CharField(max_length=16, choices=MemberRole.choices, default=MemberRole.MEMBER)
+    # Shared canvas coordinates, stored as percentages of the available canvas.
+    # A null value lets the interface choose a sensible first position.
+    canvas_x = models.FloatField(null=True, blank=True)
+    canvas_y = models.FloatField(null=True, blank=True)
     joined_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

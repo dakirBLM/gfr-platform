@@ -1,0 +1,281 @@
+{% extends 'dashboard_base.html' %}
+
+{% block title %}Project Canvas · {{ project.title }} · GFR{% endblock %}
+{% block topbar_eyebrow %}Projects{% endblock %}
+{% block topbar_title %}Project Canvas{% endblock %}
+
+{% block extra_head %}
+<style>
+  @keyframes canvasNodeEnter {
+    from { opacity: 0; transform: translate(-50%, -50%) scale(.55); }
+    70% { transform: translate(-50%, -50%) scale(1.08); }
+    to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  }
+  @keyframes canvasLineFlow { to { stroke-dashoffset: -22; } }
+  @keyframes canvasProjectPulse { 50% { box-shadow: 0 0 0 14px rgba(99, 102, 241, 0); } }
+  .canvas-board {
+    min-height: 640px;
+    background-color: #f7f8ff;
+    background-image: radial-gradient(rgba(79, 70, 229, .15) 1px, transparent 1px);
+    background-size: 22px 22px;
+    touch-action: none;
+  }
+  .canvas-link { stroke: #818cf8; stroke-width: 2; stroke-dasharray: 5 6; animation: canvasLineFlow 1.35s linear infinite; }
+  .canvas-node { position: absolute; z-index: 2; transform: translate(-50%, -50%); animation: canvasNodeEnter .48s cubic-bezier(.2,.8,.2,1) both; touch-action: none; }
+  .canvas-node:focus-visible { outline: 3px solid rgba(79, 70, 229, .35); outline-offset: 4px; }
+  .canvas-member-node { width: 84px; height: 84px; border: 4px solid #fff; box-shadow: 0 8px 22px rgba(15, 23, 42, .18); }
+  .canvas-member-node:hover { transform: translate(-50%, -50%) scale(1.08); }
+  .canvas-owner-node { width: 98px; height: 98px; border-color: #fbbf24; box-shadow: 0 0 0 4px rgba(245, 158, 11, .18), 0 12px 28px rgba(146, 64, 14, .22); }
+  .canvas-project-node { width: 144px; height: 144px; box-shadow: 0 0 0 0 rgba(99, 102, 241, .34), 0 16px 35px rgba(49, 46, 129, .28); animation: canvasNodeEnter .48s cubic-bezier(.2,.8,.2,1) both, canvasProjectPulse 2.8s ease-out 1s infinite; }
+  .canvas-project-orb { width: 144px; height: 144px; }
+  .canvas-project-title { width: 190px; transform: translateX(-50%); overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+  .canvas-node.dragging { cursor: grabbing; transition: none; animation: none; }
+  .canvas-detail {
+    position: absolute; z-index: 10; width: min(310px, calc(100% - 2rem));
+    border: 1px solid rgba(199, 210, 254, .95); border-radius: 1rem;
+    background: rgba(255, 255, 255, .98); box-shadow: 0 18px 45px rgba(49, 46, 129, .17);
+    transition: opacity .18s ease, transform .18s ease; transform-origin: center left;
+  }
+  .canvas-detail::before {
+    content: ''; position: absolute; top: 38px; left: -7px; width: 14px; height: 14px;
+    transform: rotate(45deg); background: white; border-left: 1px solid rgba(199, 210, 254, .95); border-bottom: 1px solid rgba(199, 210, 254, .95);
+  }
+  .canvas-detail[data-side="left"] { transform-origin: center right; }
+  .canvas-detail[data-side="left"]::before { left: auto; right: -7px; border-left: 0; border-bottom: 0; border-right: 1px solid rgba(199, 210, 254, .95); border-top: 1px solid rgba(199, 210, 254, .95); }
+  .canvas-detail.is-changing { opacity: 0; transform: scale(.96); }
+  @media (prefers-reduced-motion: reduce) {
+    .canvas-node, .canvas-project-node, .canvas-link { animation: none; }
+    .canvas-detail { transition: none; }
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-7xl space-y-5">
+  <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+    <div>
+      <div class="flex items-center gap-2">
+        <a href="{% url 'dashboard:project_detail' project.slug %}" class="text-sm text-ink-600 hover:text-brand-700">← {{ project.title }}</a>
+        <span class="rounded-full bg-violet-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[.14em] text-violet-700">Beta</span>
+      </div>
+      <h1 class="mt-1 font-serif text-2xl font-semibold text-ink-900">Project Canvas</h1>
+      <p class="mt-1 text-sm text-ink-600">A live map of your research collaboration. Drag a bubble to arrange the team.</p>
+    </div>
+    <div class="flex items-center gap-2 text-xs text-ink-600">
+      <span class="inline-block h-3 w-3 rounded-full border-2 border-amber-400 bg-white"></span> Project owner
+      <span class="ml-3 inline-block h-3 w-3 rounded-full border-2 border-white bg-violet-500 shadow"></span> Team member
+    </div>
+  </div>
+
+  <section id="project-canvas"
+           data-data-url="{% url 'dashboard:project_canvas_data' project.slug %}"
+           data-position-url="{% url 'dashboard:project_canvas_position' project.slug 0 %}">
+    <div id="canvas-board" class="canvas-board relative overflow-hidden" aria-label="Project collaboration canvas">
+      <svg id="canvas-lines" class="pointer-events-none absolute inset-0 h-full w-full" aria-hidden="true"></svg>
+      <div id="canvas-detail" class="canvas-detail hidden p-4" aria-live="polite"></div>
+      <p class="pointer-events-none absolute bottom-4 left-5 z-10 rounded-full bg-white/90 px-3 py-1.5 text-xs text-ink-600 shadow-sm">Click a bubble to open its work message · drag a bubble to rearrange the map</p>
+    </div>
+  </section>
+</div>
+
+{{ canvas_data|json_script:'project-canvas-data' }}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  (() => {
+    const canvas = document.getElementById('project-canvas');
+    const board = document.getElementById('canvas-board');
+    const lines = document.getElementById('canvas-lines');
+    const detail = document.getElementById('canvas-detail');
+    const dataNode = document.getElementById('project-canvas-data');
+    if (!canvas || !board || !lines || !detail || !dataNode) return;
+
+    let data = JSON.parse(dataNode.textContent);
+    let active = null;
+    let dragging = null;
+    let lastDragAt = 0;
+
+    const el = (tag, classes, text) => {
+      const node = document.createElement(tag);
+      if (classes) node.className = classes;
+      if (text !== undefined) node.textContent = text;
+      return node;
+    };
+    const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
+    const positionUrl = id => canvas.dataset.positionUrl.replace('/0/position/', `/${id}/position/`);
+
+    const defaultPosition = (index, total) => {
+      const angle = (Math.PI * 2 * index / Math.max(total, 1)) - Math.PI / 2;
+      return { x: 50 + Math.cos(angle) * 35, y: 50 + Math.sin(angle) * 34 };
+    };
+    const memberPosition = (member, index) => {
+      if (Number.isFinite(member.position.x) && Number.isFinite(member.position.y)) return member.position;
+      return defaultPosition(index, data.members.length);
+    };
+    const point = element => ({
+      x: parseFloat(element.style.left), y: parseFloat(element.style.top),
+    });
+    const drawLines = () => {
+      lines.replaceChildren();
+      lines.setAttribute('viewBox', '0 0 100 100');
+      lines.setAttribute('preserveAspectRatio', 'none');
+      const projectNode = board.querySelector('[data-node="project"]');
+      if (!projectNode) return;
+      const start = point(projectNode);
+      board.querySelectorAll('[data-member-id]').forEach(node => {
+        const end = point(node);
+        const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+        line.setAttribute('x1', start.x); line.setAttribute('y1', start.y);
+        line.setAttribute('x2', end.x); line.setAttribute('y2', end.y);
+        line.setAttribute('vector-effect', 'non-scaling-stroke');
+        line.setAttribute('class', 'canvas-link');
+        lines.appendChild(line);
+      });
+    };
+    const positionDetail = next => {
+      const selector = next.type === 'project' ? '[data-node="project"]' : `[data-member-id="${next.id}"]`;
+      const anchor = board.querySelector(selector);
+      if (!anchor) return;
+      const boardBox = board.getBoundingClientRect();
+      const nodeBox = anchor.getBoundingClientRect();
+      const nodeX = nodeBox.left - boardBox.left + nodeBox.width / 2;
+      const nodeY = nodeBox.top - boardBox.top + nodeBox.height / 2;
+      const showOnRight = nodeX < boardBox.width * .58;
+      const width = detail.offsetWidth || 310;
+      const height = detail.offsetHeight || 180;
+      const left = showOnRight
+        ? clamp(nodeX + nodeBox.width / 2 + 24, 16, boardBox.width - width - 16)
+        : clamp(nodeX - nodeBox.width / 2 - width - 24, 16, boardBox.width - width - 16);
+      const top = clamp(nodeY - 46, 16, boardBox.height - height - 16);
+      detail.dataset.side = showOnRight ? 'right' : 'left';
+      detail.style.left = `${left}px`; detail.style.top = `${top}px`;
+    };
+    const setDetail = (next) => {
+      if (!next) { detail.classList.add('hidden'); return; }
+      detail.classList.add('is-changing');
+      window.setTimeout(() => {
+        detail.replaceChildren();
+        const close = el('button', 'absolute right-3 top-3 rounded-full p-1 text-ink-400 hover:bg-ink-100 hover:text-ink-700');
+        close.type = 'button'; close.title = 'Close message'; close.setAttribute('aria-label', 'Close message'); close.innerHTML = '<svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" d="M6 6l12 12M18 6L6 18"/></svg>';
+        close.addEventListener('click', () => { active = null; detail.classList.add('hidden'); });
+        detail.append(close);
+        if (next.type === 'project') {
+          detail.append(el('p', 'pr-6 text-xs font-bold uppercase tracking-[.16em] text-violet-600', 'Project message'));
+          detail.append(el('h2', 'mt-2 font-serif text-lg font-semibold text-ink-900', data.project.title));
+          detail.append(el('p', 'mt-2 text-sm leading-relaxed text-ink-600', data.project.description));
+          if (data.project.objectives) {
+            const objectives = el('div', 'mt-4 rounded-lg bg-indigo-50 p-3');
+            objectives.append(el('p', 'text-[11px] font-bold uppercase tracking-wide text-indigo-700', 'Objectives'));
+            objectives.append(el('p', 'mt-1 text-sm text-indigo-950', data.project.objectives));
+            detail.append(objectives);
+          }
+          const stats = el('dl', 'mt-4 grid grid-cols-3 gap-2 border-t border-ink-100 pt-3 text-center');
+          [['Members', data.project.members], ['Open', data.project.open_tasks], ['Done', data.project.completed_tasks]].forEach(([label, value]) => {
+            const item = el('div'); item.append(el('dt', 'text-[10px] uppercase tracking-wide text-ink-500', label)); item.append(el('dd', 'mt-1 font-serif text-lg font-semibold', value)); stats.append(item);
+          });
+          detail.append(stats);
+        } else {
+          const member = data.members.find(item => item.id === next.id);
+          if (!member) return;
+          const top = el('div', 'flex items-center gap-3 pr-6');
+          const image = el('img', `h-12 w-12 rounded-full object-cover ${member.is_owner ? 'ring-2 ring-amber-400 ring-offset-2' : 'ring-2 ring-violet-200 ring-offset-2'}`);
+          image.src = member.avatar; image.alt = member.name;
+          const title = el('div'); title.append(el('h2', 'font-serif text-xl font-semibold text-ink-900', member.name)); title.append(el('p', 'text-xs text-ink-500', member.role)); top.append(image, title); detail.append(top);
+          const status = el('div', 'mt-4 rounded-lg bg-emerald-50 px-3 py-2');
+          status.append(el('p', 'text-[10px] font-bold uppercase tracking-wide text-emerald-700', 'Current work status'));
+          status.append(el('p', 'mt-0.5 text-sm font-semibold text-emerald-900', member.work_status)); detail.append(status);
+          const asks = el('div', 'mt-4'); asks.append(el('div', 'flex items-center justify-between text-sm font-semibold text-ink-800', `Pending asks (${member.tasks.length})`));
+          if (member.tasks.length) {
+            const list = el('ul', 'mt-2 space-y-2');
+            member.tasks.slice(0, 4).forEach(task => {
+              const item = el('li', 'rounded-lg border border-ink-100 p-2'); const link = el('a', 'block text-sm font-medium text-brand-700 hover:text-brand-800', task.title); link.href = task.url; item.append(link, el('p', 'mt-0.5 text-xs text-ink-500', task.status)); list.append(item);
+            }); asks.append(list);
+          } else asks.append(el('p', 'mt-2 text-sm text-ink-500', 'No pending tasks assigned.'));
+          detail.append(asks);
+          const completed = el('div', 'mt-4 border-t border-ink-100 pt-3');
+          completed.append(el('p', 'text-sm font-semibold text-ink-800', `Completed work (${member.done_count})`));
+          if (member.completed_tasks.length) {
+            const list = el('ul', 'mt-2 space-y-1.5');
+            member.completed_tasks.slice(0, 4).forEach(task => {
+              const item = el('li', 'flex items-center gap-2 text-sm text-ink-600');
+              item.innerHTML = '<svg class="h-3.5 w-3.5 shrink-0 text-emerald-500" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>';
+              const link = el('a', 'truncate hover:text-brand-700 hover:underline', task.title); link.href = task.url; item.append(link); list.append(item);
+            });
+            completed.append(list);
+          } else completed.append(el('p', 'mt-1.5 text-sm text-ink-500', 'No completed tasks yet.'));
+          detail.append(completed);
+          const footer = el('div', 'mt-4 flex justify-end border-t border-ink-100 pt-3 text-sm'); const profile = el('a', 'font-semibold text-brand-700 hover:text-brand-800', 'View profile →'); profile.href = member.profile_url; footer.append(profile); detail.append(footer);
+        }
+        detail.classList.remove('hidden');
+        positionDetail(next);
+        detail.classList.remove('is-changing');
+      }, 120);
+    };
+    const activate = next => { active = next; setDetail(next); };
+    const persistPosition = member => {
+      fetch(positionUrl(member.id), {
+        method: 'POST', credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': document.cookie.match(/(?:^|; )csrftoken=([^;]*)/)?.[1] || '' },
+        body: JSON.stringify(member.position),
+      }).catch(() => {});
+    };
+    const addMemberNode = (member, index) => {
+      const pos = memberPosition(member, index); member.position = { x: pos.x, y: pos.y };
+      const node = el('button', `canvas-node canvas-member-node overflow-visible rounded-full bg-white ${member.is_owner ? 'canvas-owner-node' : ''}`);
+      node.type = 'button'; node.dataset.memberId = member.id; node.style.left = `${pos.x}%`; node.style.top = `${pos.y}%`;
+      node.title = `${member.name} · ${member.work_status}${member.can_drag ? ' · drag to move' : ''}`;
+      const image = el('img', 'h-full w-full rounded-full object-cover'); image.src = member.avatar; image.alt = member.name; image.draggable = false; node.append(image);
+      const name = el('span', 'absolute left-1/2 top-full mt-2 max-w-[120px] -translate-x-1/2 whitespace-nowrap rounded-full bg-white/95 px-2 py-1 text-[11px] font-semibold text-ink-700 shadow-sm', member.name); node.append(name);
+      if (member.is_owner) node.append(el('span', 'absolute -right-2 -top-2 rounded-full bg-amber-400 px-2 py-0.5 text-[9px] font-bold uppercase tracking-wide text-amber-950 shadow-sm', 'Owner'));
+      node.addEventListener('click', () => { if (Date.now() - lastDragAt > 250) activate({ type: 'member', id: member.id }); });
+      node.addEventListener('pointerdown', event => {
+        if (!member.can_drag || (typeof event.button === 'number' && event.button !== 0)) return;
+        event.preventDefault();
+        const rect = board.getBoundingClientRect();
+        dragging = { member, node, moved: false, rect };
+        node.classList.add('dragging');
+        try { node.setPointerCapture(event.pointerId); } catch (_) {}
+      });
+      node.addEventListener('dragstart', event => event.preventDefault());
+      board.append(node);
+    };
+    const render = () => {
+      board.querySelectorAll('.canvas-node').forEach(node => node.remove());
+      const project = el('button', 'canvas-node canvas-project-node overflow-visible rounded-full text-center');
+      project.type = 'button'; project.dataset.node = 'project'; project.style.left = '50%'; project.style.top = '50%'; project.title = 'View project details';
+      const orb = el('span', 'canvas-project-orb flex flex-col items-center justify-center rounded-full border border-indigo-300 bg-white text-indigo-900');
+      orb.innerHTML = '<span class="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-500 to-violet-700 text-white shadow-lg"><svg class="h-6 w-6" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 19.5V6a2 2 0 012-2h8l4 4v11.5a.5.5 0 01-.5.5h-13a.5.5 0 01-.5-.5z"/><path stroke-linecap="round" d="M14 4v4h4M8 13h8M8 16h5"/></svg></span><span class="mt-2 text-[10px] font-bold uppercase tracking-[.18em] text-indigo-500">Project hub</span><span class="mt-0.5 text-xs font-semibold text-indigo-900">' + data.project.status + '</span>';
+      project.append(orb);
+      project.append(el('span', 'canvas-project-title absolute left-1/2 top-full mt-3 rounded-xl bg-white/95 px-3 py-1.5 text-xs font-semibold leading-snug text-ink-700 shadow-sm', data.project.title));
+      project.addEventListener('click', () => activate({ type: 'project' })); board.append(project);
+      data.members.forEach(addMemberNode); drawLines(); setDetail(active);
+    };
+    const moveDragging = event => {
+      if (!dragging) return;
+      const x = clamp((event.clientX - dragging.rect.left) / dragging.rect.width * 100, 8, 92);
+      const y = clamp((event.clientY - dragging.rect.top) / dragging.rect.height * 100, 10, 90);
+      dragging.member.position = { x, y }; dragging.node.style.left = `${x}%`; dragging.node.style.top = `${y}%`; dragging.moved = true; drawLines();
+      if (active && active.type === 'member' && active.id === dragging.member.id) positionDetail(active);
+    };
+    const finishDrag = () => {
+      if (!dragging) return;
+      dragging.node.classList.remove('dragging');
+      if (dragging.moved) { lastDragAt = Date.now(); persistPosition(dragging.member); }
+      dragging = null;
+    };
+    document.addEventListener('pointermove', moveDragging);
+    document.addEventListener('pointerup', finishDrag); document.addEventListener('pointercancel', finishDrag);
+    window.addEventListener('resize', () => { drawLines(); if (active) positionDetail(active); });
+
+    // Refreshing the graph lets an invited member appear without a page reload.
+    window.setInterval(() => fetch(canvas.dataset.dataUrl, { credentials: 'same-origin' })
+      .then(response => response.ok ? response.json() : null)
+      .then(next => {
+        if (!next || JSON.stringify(next.members) === JSON.stringify(data.members)) return;
+        data = next; render();
+      }).catch(() => {}), 15000);
+    render();
+  })();
+</script>
+{% endblock %}
