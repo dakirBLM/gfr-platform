@@ -88,27 +88,55 @@
                 {% if recent_notifications %}
                   <ul class="max-h-96 overflow-y-auto divide-y divide-ink-50">
                     {% for n in recent_notifications %}
-                      <li>
-                        <form method="post" action="{% url 'dashboard:notif_read' n.pk %}">
-                          {% csrf_token %}
-                          <button type="submit" class="w-full text-left flex items-start gap-3 px-4 py-3 hover:bg-ink-50 transition-colors {% if not n.is_read %}bg-brand-50/60{% endif %}">
+                      {% if n.notif_type == 'project_invitation' and n.project_invitation %}
+                        <li class="px-4 py-3 {% if not n.is_read %}bg-brand-50/60{% endif %}">
+                          <div class="flex items-start gap-3">
                             {% if n.actor %}
                               <img src="{{ n.actor.avatar_url }}" alt="{{ n.actor.display_name }}" class="w-8 h-8 rounded-full object-cover bg-ink-100 shrink-0 mt-0.5">
-                            {% else %}
-                              <span class="w-8 h-8 rounded-full bg-ink-100 flex items-center justify-center shrink-0 mt-0.5">
-                                <svg class="w-4 h-4 text-ink-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                              </span>
                             {% endif %}
                             <div class="flex-1 min-w-0">
                               <p class="text-xs leading-snug {% if not n.is_read %}font-semibold text-ink-900{% else %}text-ink-600{% endif %}">{{ n.message }}</p>
                               <p class="text-[11px] text-ink-400 mt-0.5">{{ n.created_at|timesince }} ago</p>
+                              <div class="mt-2 flex items-center gap-2">
+                                <form method="post" action="{% url 'dashboard:respond_to_invitation' n.project_invitation.pk %}">
+                                  {% csrf_token %}
+                                  <input type="hidden" name="action" value="accept">
+                                  <input type="hidden" name="next" value="{{ request.path }}">
+                                  <button type="submit" class="px-2.5 py-1 rounded-md bg-brand-700 text-white text-[11px] font-semibold hover:bg-brand-800">Accept</button>
+                                </form>
+                                <form method="post" action="{% url 'dashboard:respond_to_invitation' n.project_invitation.pk %}">
+                                  {% csrf_token %}
+                                  <input type="hidden" name="action" value="decline">
+                                  <input type="hidden" name="next" value="{{ request.path }}">
+                                  <button type="submit" class="px-2.5 py-1 rounded-md border border-ink-200 bg-white text-ink-600 text-[11px] font-semibold hover:bg-ink-50">Decline</button>
+                                </form>
+                              </div>
                             </div>
-                            {% if not n.is_read %}
-                              <span class="w-2 h-2 rounded-full bg-brand-500 shrink-0 mt-1.5"></span>
-                            {% endif %}
-                          </button>
-                        </form>
-                      </li>
+                          </div>
+                        </li>
+                      {% else %}
+                        <li>
+                          <form method="post" action="{% url 'dashboard:notif_read' n.pk %}">
+                            {% csrf_token %}
+                            <button type="submit" class="w-full text-left flex items-start gap-3 px-4 py-3 hover:bg-ink-50 transition-colors {% if not n.is_read %}bg-brand-50/60{% endif %}">
+                              {% if n.actor %}
+                                <img src="{{ n.actor.avatar_url }}" alt="{{ n.actor.display_name }}" class="w-8 h-8 rounded-full object-cover bg-ink-100 shrink-0 mt-0.5">
+                              {% else %}
+                                <span class="w-8 h-8 rounded-full bg-ink-100 flex items-center justify-center shrink-0 mt-0.5">
+                                  <svg class="w-4 h-4 text-ink-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                </span>
+                              {% endif %}
+                              <div class="flex-1 min-w-0">
+                                <p class="text-xs leading-snug {% if not n.is_read %}font-semibold text-ink-900{% else %}text-ink-600{% endif %}">{{ n.message }}</p>
+                                <p class="text-[11px] text-ink-400 mt-0.5">{{ n.created_at|timesince }} ago</p>
+                              </div>
+                              {% if not n.is_read %}
+                                <span class="w-2 h-2 rounded-full bg-brand-500 shrink-0 mt-1.5"></span>
+                              {% endif %}
+                            </button>
+                          </form>
+                        </li>
+                      {% endif %}
                     {% endfor %}
                   </ul>
                 {% else %}

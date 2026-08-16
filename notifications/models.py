@@ -11,6 +11,8 @@ class NotifType(models.TextChoices):
     PROJECT_ADDED   = 'project_added',   'Added to project'
     PROJECT_APPLICATION = 'project_application', 'Project application received'
     PROJECT_APPLICATION_DECISION = 'project_application_decision', 'Project application decision'
+    PROJECT_INVITATION = 'project_invitation', 'Project invitation received'
+    PROJECT_INVITATION_DECLINED = 'project_invitation_declined', 'Project invitation declined'
     MANUSCRIPT_UPDATE = 'manuscript_update', 'Manuscript status updated'
     NEW_FOLLOW      = 'new_follow',      'New follower'
     NEW_MESSAGE     = 'new_message',     'New message'
@@ -27,6 +29,11 @@ class Notification(models.Model):
     notif_type = models.CharField(max_length=32, choices=NotifType.choices)
     message = models.CharField(max_length=255)
     url = models.CharField(max_length=500, blank=True)
+    project_invitation = models.ForeignKey(
+        'projects.ProjectInvitation', on_delete=models.CASCADE,
+        null=True, blank=True, related_name='notifications',
+        help_text='Linked when this notification is about a project invitation.',
+    )
     is_read = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -37,7 +44,7 @@ class Notification(models.Model):
         return f'→ {self.recipient}: {self.message}'
 
 
-def notify(recipient, notif_type: str, message: str, url: str = '', actor=None):
+def notify(recipient, notif_type: str, message: str, url: str = '', actor=None, project_invitation=None):
     """
     Create a notification. Safe to call from anywhere — silently ignores
     sending a notification to the actor themselves.
@@ -50,4 +57,5 @@ def notify(recipient, notif_type: str, message: str, url: str = '', actor=None):
         notif_type=notif_type,
         message=message,
         url=url,
+        project_invitation=project_invitation,
     )

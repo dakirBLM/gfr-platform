@@ -165,9 +165,74 @@
         </div>
       </div>
       {% endif %}
+{# ── Invitations awaiting response ── #}
+      {% if entry.invitations %}
+      <div class="px-5 pt-3 pb-3">
+        <h3 class="text-[11px] uppercase tracking-wider font-semibold text-amber-800 mb-2 flex items-center gap-1.5">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 8l9-5 9 5-9 5-9-5zm0 0v8l9 5 9-5V8m-9 5v8"/></svg>
+          Invitations awaiting response ({{ entry.invitation_count }})
+        </h3>
+        <div class="rounded-lg border border-amber-200/60 overflow-hidden">
+          {% for inv in entry.invitations %}
+          <div class="flex items-center gap-3 px-4 py-2.5 {% if not forloop.last %}border-b border-amber-200/50{% endif %}">
+            <img src="{{ inv.invitee.avatar_url }}" alt="" class="h-8 w-8 shrink-0 rounded-full border border-amber-200 bg-white object-cover">
+            <div class="min-w-0 flex-1">
+              <p class="text-sm text-ink-900">
+                <strong>{{ inv.invitee.display_name }}</strong>
+                <span class="text-ink-600"> invited as {{ inv.get_role_display }}</span>
+              </p>
+              <p class="text-xs text-ink-500 mt-0.5">Sent {{ inv.created_at|timesince }} ago · awaiting response</p>
+            </div>
+            <a href="{% url 'dashboard:project_detail' entry.project.slug %}" class="shrink-0 text-xs font-medium text-brand-700 hover:text-brand-800">View →</a>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
       </div>
     </details>
     {% endfor %}
+  </section>
+  {% endif %}
+
+  {% if received_invitations %}
+  <section class="overflow-hidden rounded-xl border border-violet-200 bg-violet-50/60" aria-label="Invitations for you">
+    <div class="flex items-center justify-between gap-3 px-5 py-4 border-b border-violet-200">
+      <h2 class="flex items-center gap-2 text-sm font-semibold text-violet-900">
+        <svg class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 8l9-5 9 5-9 5-9-5zm0 0v8l9 5 9-5V8m-9 5v8"/></svg>
+        Invitations for you
+        <span class="px-2 py-0.5 rounded-full bg-violet-500 text-white text-[11px] font-bold">{{ received_invitations|length }}</span>
+      </h2>
+    </div>
+    <div class="divide-y divide-violet-100">
+      {% for inv in received_invitations %}
+      <div class="flex items-center gap-3 px-5 py-3.5">
+        <img src="{{ inv.invited_by.avatar_url }}" alt="" class="h-9 w-9 shrink-0 rounded-full border border-violet-200 bg-white object-cover">
+        <div class="min-w-0 flex-1">
+          <p class="text-sm text-ink-900">
+            <a href="{% url 'dashboard:researcher_profile' inv.invited_by.username %}" class="font-semibold hover:text-brand-700">{{ inv.invited_by.display_name }}</a>
+            <span class="text-ink-600"> invited you to join <a href="{% url 'dashboard:project_detail' inv.project.slug %}" class="font-semibold text-ink-900 hover:text-brand-700">{{ inv.project.title }}</a></span>
+          </p>
+          <p class="text-xs text-ink-500 mt-0.5">As {{ inv.get_role_display }} · {{ inv.created_at|timesince }} ago</p>
+          {% if inv.message %}<p class="mt-1 text-xs text-ink-600 italic">"{{ inv.message }}"</p>{% endif %}
+        </div>
+        <div class="shrink-0 flex items-center gap-2">
+          <form method="post" action="{% url 'dashboard:respond_to_invitation' inv.pk %}">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="accept">
+            <input type="hidden" name="next" value="{{ request.path }}">
+            <button type="submit" class="px-3 py-1.5 rounded-md bg-brand-700 text-white text-xs font-semibold hover:bg-brand-800">Accept</button>
+          </form>
+          <form method="post" action="{% url 'dashboard:respond_to_invitation' inv.pk %}">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="decline">
+            <input type="hidden" name="next" value="{{ request.path }}">
+            <button type="submit" class="px-3 py-1.5 rounded-md border border-ink-200 bg-white text-ink-600 text-xs font-semibold hover:bg-ink-50">Decline</button>
+          </form>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
   </section>
   {% endif %}
 

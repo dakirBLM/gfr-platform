@@ -15,12 +15,13 @@ from accounts.models import Role
 from messaging.utils import get_or_create_project_chat, sync_member_to_project_chat
 from notifications.models import NotifType, notify
 from .forms import (
-    AddMemberForm, MilestoneForm, ProjectForm,
+    AddMemberForm, InviteMemberForm, MilestoneForm, ProjectForm,
     ProjectApplicationForm, ProjectSectionForm, TaskForm, TaskReviewForm, TaskSubmitForm,
 )
 from .models import (
-    Milestone, MemberRole, Project, ProjectMembership,
-    ProjectApplication, ProjectSection, ProjectStatus, ReviewStatus, Task, TaskStatus,
+    InvitationStatus, Milestone, MemberRole, Project, ProjectApplication,
+    ProjectInvitation, ProjectMembership, ProjectSection, ProjectStatus, ReviewStatus,
+    Task, TaskStatus,
 )
 
 MAX_TASKS_PER_PROJECT = 20
@@ -80,7 +81,7 @@ def project_detail(request, slug):
 
     # Tasks submitted by members awaiting manager review.
     pending_review = tasks.filter(review_status=ReviewStatus.SUBMITTED) if is_manager else None
-    add_member_form = AddMemberForm(project=project) if is_manager else None
+    add_member_form = InviteMemberForm(project=project) if is_manager else None
 
     return render(request, 'projects/detail.html', {
         'project': project,
@@ -103,6 +104,11 @@ def project_detail(request, slug):
         'milestone_form': MilestoneForm() if is_manager else None,
         'add_member_form': add_member_form,
         'available_members': add_member_form.fields['user'].queryset if add_member_form else None,
+        'pending_invitations': (
+            project.invitations.filter(status=InvitationStatus.PENDING)
+            .select_related('invitee', 'invited_by')
+            if is_manager else None
+        ),
         'todo_count': tasks.filter(status=TaskStatus.TODO).count(),
         'done_count': tasks.filter(status=TaskStatus.DONE).count(),
         'pending_count': tasks.filter(review_status=ReviewStatus.SUBMITTED).count(),
@@ -392,10 +398,104 @@ def leave_project(request, slug):
 
 
 @login_required
-def add_member(request, slug):
-    """Manager adds a specific researcher to the project."""
+def invite_member(request, slug):
+    """Manager invites a researcher. Membership only forms once they accept."""
     project = get_object_or_404(Project, slug=slug)
     _require_manager(project, request.user)
+    form = InviteMemberForm(request.POST, project=project)
+    if form.is_valid():
+        invitee = form.cleaned_data['user']
+        if ProjectMembership.objects.filter(project=project, user=invitee).exists():
+            messages.info(request, f'{invitee.display_name} is already a member.')
+        elif project.invitations.filter(invitee=invitee, status=InvitationStatus.PENDING).exists():
+            messages.info(request, f'An invitation is already pending for {invitee.display_name}.')
+        else:
+            invitation = ProjectInvitation.objects.create(
+                project=project,
+                invitee=invitee,
+                invited_by=request.user,
+                role=form.cleaned_data['role'],
+                message=form.cleaned_data.get('message', ''),
+            )
+            notify(
+                recipient=invitee, actor=request.user,
+                notif_type=NotifType.PROJECT_INVITATION,
+                message=f'{request.user.display_name} invited you to join "{project.title}".',
+                url=f'/app/projects/{slug}/',
+                project_invitation=invitation,
+            )
+            messages.success(request, f'Invitation sent to {invitee.display_name}.')
+    else:
+        messages.error(request, 'Could not send the invitation.')
+    return redirect('dashboard:project_detail', slug=slug)
+
+
+@login_required
+@require_POST
+def respond_to_invitation(request, invitation_pk):
+    """The invitee accepts or declines. Membership (chat, canvas bubble,
+    task assignability) is only created on accept."""
+    invitation = get_object_or_404(
+        ProjectInvitation, pk=invitation_pk, invitee=request.user, status=InvitationStatus.PENDING,
+    )
+    action = request.POST.get('action')
+    if action not in ('accept', 'decline'):
+        raise Http404
+
+    project = invitation.project
+    if action == 'accept':
+        _, created = ProjectMembership.objects.get_or_create(
+            project=project, user=request.user, defaults={'role': invitation.role},
+        )
+        if created:
+            sync_member_to_project_chat(project, request.user, add=True)
+        invitation.status = InvitationStatus.ACCEPTED
+        invitation.responded_at = timezone.now()
+        invitation.save(update_fields=['status', 'responded_at'])
+        project_url = f'/app/projects/{project.slug}/'
+        for m in project.memberships.filter(role__in=[MemberRole.OWNER, MemberRole.MANAGER]).select_related('user'):
+            notify(recipient=m.user, actor=request.user, notif_type=NotifType.PROJECT_JOINED,
+                   message=f'{request.user.display_name} accepted your invitation and joined "{project.title}".',
+                   url=project_url)
+        messages.success(request, f'You joined "{project.title}".')
+    else:
+        invitation.status = InvitationStatus.DECLINED
+        invitation.responded_at = timezone.now()
+        invitation.save(update_fields=['status', 'responded_at'])
+        notify(
+            recipient=invitation.invited_by, actor=request.user,
+            notif_type=NotifType.PROJECT_INVITATION_DECLINED,
+            message=f'{request.user.display_name} declined your invitation to "{project.title}".',
+            url=f'/app/projects/{project.slug}/',
+        )
+        messages.info(request, f'You declined the invitation to "{project.title}".')
+
+    next_url = request.POST.get('next', '')
+    if next_url.startswith('/'):
+        return redirect(next_url)
+    return redirect('dashboard:home')
+
+
+@login_required
+@require_POST
+def cancel_invitation(request, slug, invitation_pk):
+    """Manager withdraws a pending invitation."""
+    project = get_object_or_404(Project, slug=slug)
+    _require_manager(project, request.user)
+    invitation = get_object_or_404(
+        ProjectInvitation, pk=invitation_pk, project=project, status=InvitationStatus.PENDING,
+    )
+    invitation.delete()
+    messages.info(request, 'Invitation cancelled.')
+    return redirect('dashboard:project_detail', slug=slug)
+
+
+@login_required
+def direct_add_member(request, slug):
+    """Admin-only override that bypasses the invitation flow entirely."""
+    project = get_object_or_404(Project, slug=slug)
+    if not request.user.can_manage_users:
+        raise Http404
     form = AddMemberForm(request.POST, project=project)
     if form.is_valid():
         user = form.cleaned_data['user']

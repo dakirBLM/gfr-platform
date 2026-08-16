@@ -19,7 +19,7 @@ def dashboard_globals(request):
         )
         notifs_qs = (
             request.user.notifications
-            .select_related('actor')
+            .select_related('actor', 'project_invitation')
             .order_by('-created_at')[:15]
         )
         unread_notifs = request.user.notifications.filter(is_read=False).count()

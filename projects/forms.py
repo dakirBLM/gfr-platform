@@ -2,7 +2,7 @@ from django import forms
 
 from accounts.forms import INPUT_CSS
 from accounts.models import Role, User
-from .models import Milestone, Project, ProjectApplication, ProjectSection, Task
+from .models import InvitationStatus, Milestone, Project, ProjectApplication, ProjectSection, Task
 
 
 def _css(form):
@@ -87,6 +87,23 @@ class AddMemberForm(forms.Form):
                 self.fields['user'].queryset.exclude(pk__in=existing)
             )
         _css(self)
+
+
+class InviteMemberForm(AddMemberForm):
+    """Manager invites a single researcher. Membership is only created on accept."""
+    message = forms.CharField(
+        required=False,
+        widget=forms.Textarea(attrs={'rows': 2, 'placeholder': 'Optional message for the invitee…'}),
+        label='Invitation message',
+    )
+
+    def __init__(self, *args, project=None, **kwargs):
+        super().__init__(*args, project=project, **kwargs)
+        self.fields['user'].label = 'Invite researcher'
+        if project:
+            pending_ids = project.invitations.filter(status=InvitationStatus.PENDING).values_list('invitee_id', flat=True)
+            self.fields['user'].queryset = self.fields['user'].queryset.exclude(pk__in=pending_ids)
+        self.fields['role'].label = 'Invited role'
 
 
 class TaskForm(forms.ModelForm):

@@ -16,8 +16,11 @@ urlpatterns = [
     path('<slug:slug>/sections/', views.add_section, name='project_add_section'),
     path('<slug:slug>/sections/<int:section_pk>/delete/', views.delete_section, name='project_delete_section'),
 
-    path('<slug:slug>/members/', views.add_member, name='project_add_member'),
+    path('<slug:slug>/members/', views.direct_add_member, name='project_direct_add_member'),
     path('<slug:slug>/members/<int:user_pk>/remove/', views.remove_member, name='project_remove_member'),
+    path('<slug:slug>/invite/', views.invite_member, name='project_invite_member'),
+    path('<slug:slug>/invitations/<int:invitation_pk>/cancel/', views.cancel_invitation, name='project_cancel_invitation'),
+    path('invitations/<int:invitation_pk>/respond/', views.respond_to_invitation, name='respond_to_invitation'),
 
     path('<slug:slug>/tasks/', views.add_task, name='project_add_task'),
     path('<slug:slug>/tasks/<int:task_pk>/', views.task_detail, name='project_task_detail'),

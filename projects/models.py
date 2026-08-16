@@ -1,5 +1,6 @@
 from django.conf import settings
 from django.db import models
+from django.db.models import Q
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.text import slugify
@@ -189,6 +190,41 @@ class ProjectApplication(models.Model):
     class Meta:
         unique_together = [('project', 'applicant')]
         ordering = ['-created_at']
+
+
+class InvitationStatus(models.TextChoices):
+    PENDING = 'pending', 'Pending'
+    ACCEPTED = 'accepted', 'Accepted'
+    DECLINED = 'declined', 'Declined'
+
+
+class ProjectInvitation(models.Model):
+    """A manager-initiated invitation. Membership is only created on accept.
+
+    The opposite of ProjectApplication: there the user asks to join and the
+    manager decides; here the manager invites and the invitee decides.
+    """
+    project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name='invitations')
+    invitee = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='received_invitations')
+    invited_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='sent_invitations')
+    role = models.CharField(max_length=16, choices=MemberRole.choices, default=MemberRole.MEMBER)
+    message = models.TextField(blank=True)
+    status = models.CharField(max_length=16, choices=InvitationStatus.choices, default=InvitationStatus.PENDING)
+    created_at = models.DateTimeField(auto_now_add=True)
+    responded_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['project', 'invitee'],
+                condition=Q(status=InvitationStatus.PENDING),
+                name='unique_pending_invitation',
+            ),
+        ]
+
+    def __str__(self):
+        return f'{self.invitee} → {self.project} ({self.status})'
 
 
 class Milestone(models.Model):
