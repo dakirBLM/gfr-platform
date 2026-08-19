@@ -31,6 +31,11 @@ class Project(models.Model):
     )
     status = models.CharField(max_length=16, choices=ProjectStatus.choices, default=ProjectStatus.OPEN)
     funding_status = models.CharField(max_length=16, choices=FundingStatus.choices, default=FundingStatus.UNFUNDED)
+    # Shared canvas position of the project hub bubble, stored as percentages
+    # of the available canvas (same convention as ProjectMembership coordinates).
+    # A null value lets the interface centre the bubble by default.
+    canvas_x = models.FloatField(null=True, blank=True)
+    canvas_y = models.FloatField(null=True, blank=True)
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name='created_projects',
     )

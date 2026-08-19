@@ -80,6 +80,36 @@ class ProjectCanvasTests(TestCase):
         self.client.force_login(self.outsider)
         self.assertEqual(self.client.post(url, data=json.dumps({'x': 45, 'y': 50}), content_type='application/json').status_code, 404)
 
+    def test_canvas_payload_marks_viewer_and_exposes_project_position(self):
+        data_url = reverse('dashboard:project_canvas_data', args=[self.project.slug])
+        self.client.force_login(self.member)
+        payload = self.client.get(data_url).json()
+        by_id = {item['id']: item for item in payload['members']}
+        self.assertTrue(by_id[self.member.pk]['is_current_user'])
+        self.assertFalse(by_id[self.owner.pk]['is_current_user'])
+        self.assertEqual(payload['project']['position'], {'x': None, 'y': None})
+
+        self.client.force_login(self.outsider)
+        self.assertEqual(self.client.get(data_url).status_code, 404)
+
+    def test_project_hub_position_is_saved_and_clamped(self):
+        url = reverse('dashboard:project_canvas_position', args=[self.project.slug, 0])
+        self.client.force_login(self.member)
+        response = self.client.post(url, data=json.dumps({'x': 12.5, 'y': 87}), content_type='application/json')
+        self.assertEqual(response.status_code, 200)
+        self.project.refresh_from_db()
+        self.assertEqual(self.project.canvas_x, 12.5)
+        self.assertEqual(self.project.canvas_y, 87)
+
+        response = self.client.post(url, data=json.dumps({'x': 999, 'y': -40}), content_type='application/json')
+        self.assertEqual(response.status_code, 200)
+        self.project.refresh_from_db()
+        self.assertEqual(self.project.canvas_x, 92)
+        self.assertEqual(self.project.canvas_y, 10)
+
+        self.client.force_login(self.outsider)
+        self.assertEqual(self.client.post(url, data=json.dumps({'x': 5, 'y': 5}), content_type='application/json').status_code, 404)
+
 
 class TaskCloseReopenGuardTests(TestCase):
     def setUp(self):
