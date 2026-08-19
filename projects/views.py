@@ -116,8 +116,9 @@ def project_detail(request, slug):
     })
 
 
-def _project_canvas_payload(project, membership):
+def _project_canvas_payload(project, membership, viewer=None):
     """Return the collaboration information used by the interactive canvas."""
+    viewer_id = getattr(viewer, 'pk', None)
     memberships = list(project.memberships.select_related('user').all())
     memberships.sort(key=lambda item: (item.user_id != project.created_by_id, item.joined_at))
 
@@ -140,6 +141,8 @@ def _project_canvas_payload(project, membership):
             'profile_url': reverse('dashboard:researcher_profile', args=[item.user.username]),
             'role': 'Project owner' if item.user_id == project.created_by_id else item.get_role_display(),
             'is_owner': item.user_id == project.created_by_id,
+            # The viewer's own bubble, so it stands out regardless of owner status.
+            'is_current_user': item.user_id == viewer_id,
             'position': {'x': item.canvas_x, 'y': item.canvas_y},
             # The canvas is a shared workspace: every project member may arrange
             # any node, and the saved arrangement is visible to the whole team.
@@ -191,6 +194,7 @@ def _project_canvas_payload(project, membership):
             'completed_tasks': project.tasks.filter(status=TaskStatus.DONE).count(),
             'is_open_for_members': project.status == ProjectStatus.OPEN,
             'can_invite': membership is not None and membership.role in (MemberRole.OWNER, MemberRole.MANAGER),
+            'position': {'x': project.canvas_x, 'y': project.canvas_y},
         },
         'members': list(by_user.values()),
     }
@@ -204,7 +208,7 @@ def project_canvas(request, slug):
         raise Http404
     return render(request, 'projects/canvas.html', {
         'project': project,
-        'canvas_data': _project_canvas_payload(project, membership),
+        'canvas_data': _project_canvas_payload(project, membership, viewer=request.user),
         'active_section': 'projects',
     })
 
@@ -215,15 +219,15 @@ def project_canvas_data(request, slug):
     membership = ProjectMembership.objects.filter(project=project, user=request.user).first()
     if not membership:
         raise Http404
-    return JsonResponse(_project_canvas_payload(project, membership))
+    return JsonResponse(_project_canvas_payload(project, membership, viewer=request.user))
 
 
 @login_required
 @require_POST
 def update_canvas_position(request, slug, user_pk):
+    """Save a canvas node position. user_pk == 0 addresses the project hub bubble."""
     project = get_object_or_404(Project, slug=slug)
     membership = ProjectMembership.objects.filter(project=project, user=request.user).first()
-    target = get_object_or_404(ProjectMembership, project=project, user_id=user_pk)
     if not membership:
         raise Http404
     try:
@@ -231,8 +235,16 @@ def update_canvas_position(request, slug, user_pk):
         x, y = float(payload['x']), float(payload['y'])
     except (json.JSONDecodeError, KeyError, TypeError, ValueError):
         return JsonResponse({'error': 'Coordinates must be numbers.'}, status=400)
-    target.canvas_x = min(max(x, 8), 92)
-    target.canvas_y = min(max(y, 10), 90)
+    x = min(max(x, 8), 92)
+    y = min(max(y, 10), 90)
+    if user_pk == 0:
+        project.canvas_x = x
+        project.canvas_y = y
+        project.save(update_fields=['canvas_x', 'canvas_y'])
+        return JsonResponse({'x': project.canvas_x, 'y': project.canvas_y})
+    target = get_object_or_404(ProjectMembership, project=project, user_id=user_pk)
+    target.canvas_x = x
+    target.canvas_y = y
     target.save(update_fields=['canvas_x', 'canvas_y'])
     return JsonResponse({'x': target.canvas_x, 'y': target.canvas_y})
 
