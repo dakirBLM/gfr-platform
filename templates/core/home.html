@@ -150,44 +150,54 @@
   </div>
 </section>
 
-{# ---------- Steps ---------- #}
-<section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 lg:py-20">
-  <div class="text-center max-w-2xl mx-auto">
-    <h2 class="font-serif text-2xl sm:text-3xl font-semibold text-brand-900">Publishing And Collaboration, Made Simple!</h2>
-    <p class="mt-2 text-sm text-ink-600">From your first profile to your next publication — three steps, one platform.</p>
-  </div>
+{# ---------- Steps (Pillars) ---------- #}
+  <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 lg:py-20">
+    <div class="text-center max-w-2xl mx-auto">
+      <h2 class="font-serif text-2xl sm:text-3xl font-semibold text-brand-900">Publishing And Collaboration, Made Simple!</h2>
+      <p class="mt-2 text-sm text-ink-600">From your first profile to your next publication — three steps, one platform.</p>
+    </div>
 
-  <div class="mt-10 grid md:grid-cols-3 gap-5 items-stretch">
-    {% for step in steps %}
-      {% if forloop.counter == 2 %}
-        {# Middle card carries the brand colour, mirroring the reference layout. #}
-        <article class="rounded-2xl bg-brand-900 text-white p-7 md:-mt-4 md:mb-[-1rem] shadow-xl shadow-brand-900/20 flex flex-col">
-          <span class="inline-flex items-center justify-center w-11 h-11 rounded-xl bg-teal-500 text-brand-900">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.9" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 16V4m0 0L8 8m4-4l4 4M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2"/></svg>
-          </span>
-          <h3 class="mt-6 font-serif text-xl font-semibold">{{ step.title }}</h3>
-          <p class="mt-2 text-sm text-ink-200/80 leading-relaxed flex-1">{{ step.body }}</p>
-          <a href="{% url 'accounts:register' %}" class="mt-6 inline-flex items-center gap-2 text-sm font-semibold text-teal-300 hover:text-teal-200">
-            Learn more
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
-          </a>
-        </article>
-      {% else %}
-        <article class="rounded-2xl bg-white p-7 shadow-sm shadow-brand-900/5 flex flex-col">
-          <span class="inline-flex items-center justify-center w-11 h-11 rounded-xl bg-teal-50 text-teal-700">
-            {% if step.icon == 'user' %}
-              <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.9" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 12a4 4 0 100-8 4 4 0 000 8zM4 21v-1a4 4 0 014-4h8a4 4 0 014 4v1"/></svg>
+    <div class="mt-10 grid md:grid-cols-3 gap-5 items-stretch">
+      {% for feature in landing_features|default:steps %}
+        {% if forloop.counter == 2 %}
+          {# Middle card carries the brand colour, mirroring the reference layout. #}
+          <article class="rounded-2xl bg-brand-900 text-white p-7 md:-mt-4 md:mb-[-1rem] shadow-xl shadow-brand-900/20 flex flex-col">
+            {% if feature.get_image_source %}
+              <div class="relative aspect-[4/3] rounded-xl overflow-hidden mb-6">
+                <img src="{{ feature.get_image_source }}" alt="{{ feature.title }}" loading="lazy"
+                     class="w-full h-full object-cover">
+              </div>
             {% else %}
-              <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="1.9" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 21a9 9 0 100-18 9 9 0 000 18zM3.6 9h16.8M3.6 15h16.8M12 3a15 15 0 010 18a15 15 0 010-18z"/></svg>
+              <span class="inline-flex items-center justify-center w-11 h-11 rounded-xl bg-teal-500 text-brand-900">
+                {{ feature.get_icon_svg|safe }}
+              </span>
             {% endif %}
-          </span>
-          <h3 class="mt-6 font-serif text-xl font-semibold text-brand-900">{{ step.title }}</h3>
-          <p class="mt-2 text-sm text-ink-600 leading-relaxed flex-1">{{ step.body }}</p>
-        </article>
-      {% endif %}
-    {% endfor %}
-  </div>
-</section>
+            <h3 class="mt-6 font-serif text-xl font-semibold">{{ feature.title }}</h3>
+            <p class="mt-2 text-sm text-ink-200/80 leading-relaxed flex-1">{{ feature.body }}</p>
+            <a href="{% url 'accounts:register' %}" class="mt-6 inline-flex items-center gap-2 text-sm font-semibold text-teal-300 hover:text-teal-200">
+              Learn more
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+            </a>
+          </article>
+        {% else %}
+          <article class="rounded-2xl bg-white p-7 shadow-sm shadow-brand-900/5 flex flex-col">
+            {% if feature.get_image_source %}
+              <div class="relative aspect-[4/3] rounded-xl overflow-hidden mb-6">
+                <img src="{{ feature.get_image_source }}" alt="{{ feature.title }}" loading="lazy"
+                     class="w-full h-full object-cover">
+              </div>
+            {% else %}
+              <span class="inline-flex items-center justify-center w-11 h-11 rounded-xl bg-teal-50 text-teal-700">
+                {{ feature.get_icon_svg|safe }}
+              </span>
+            {% endif %}
+            <h3 class="mt-6 font-serif text-xl font-semibold text-brand-900">{{ feature.title }}</h3>
+            <p class="mt-2 text-sm text-ink-600 leading-relaxed flex-1">{{ feature.body }}</p>
+          </article>
+        {% endif %}
+      {% endfor %}
+    </div>
+  </section>
 
 {# ---------- Split feature ---------- #}
 <section class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16 lg:pb-20">
