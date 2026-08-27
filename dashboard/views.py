@@ -410,10 +410,23 @@ def _dashboard_stats(user):
     projects = user.projects.all()
     open_tasks = Task.objects.filter(assigned_to=user).exclude(status=TaskStatus.DONE)
 
+    # Projects card: show only user's projects
+    projects_href = reverse('dashboard:project_list') + '?tab=mine'
+
+    # Open tasks card: dynamic routing to specific task when single, otherwise to My tasks anchor
+    open_tasks_count = open_tasks.count()
+    if open_tasks_count == 1:
+        first_task = open_tasks.select_related('project').first()
+        open_tasks_href = reverse('dashboard:project_task_detail', args=[first_task.project.slug, first_task.pk])
+    elif open_tasks_count > 1:
+        open_tasks_href = reverse('dashboard:home') + '#my-tasks'
+    else:
+        open_tasks_href = '#my-tasks'
+
     specs = [
         (manuscripts, {'label': 'Manuscripts', 'sub': 'submitted',          'tone': 'brand',   'href': reverse('dashboard:manuscript_list')}),
-        (projects,    {'label': 'Projects',    'sub': 'you participate in', 'tone': 'emerald', 'href': reverse('dashboard:project_list')}),
-        (open_tasks,  {'label': 'Open tasks',  'sub': 'assigned to you',    'tone': 'amber',   'href': reverse('dashboard:project_list') + '?tab=mine'}),
+        (projects,    {'label': 'Projects',    'sub': 'you participate in', 'tone': 'emerald', 'href': projects_href}),
+        (open_tasks,  {'label': 'Open tasks',  'sub': 'assigned to you',    'tone': 'amber',   'href': open_tasks_href}),
     ]
     sparks = [_spark(qs) for qs, _ in specs]
     counts_only = [[p['count'] for p in spark] for spark in sparks]
