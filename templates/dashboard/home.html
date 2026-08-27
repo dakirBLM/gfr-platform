@@ -241,7 +241,7 @@
       <summary class="cursor-pointer list-none px-5 py-4 flex items-center justify-between"><h2 class="font-semibold">Quick actions</h2><svg class="w-4 h-4 text-ink-500 transition-transform group-open:rotate-180" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 9l6 6 6-6"/></svg></summary>
       <ul class="border-t border-ink-100 divide-y divide-ink-100">{% for a in quick_actions %}<li><a href="{{ a.href }}" class="block px-5 py-3 text-sm font-medium text-ink-800 hover:bg-ink-50 hover:text-brand-700">{{ a.title }}</a></li>{% endfor %}</ul>
     </details>
-    <details class="group bg-white border border-ink-100 rounded-xl">
+    <details id="my-tasks" class="group bg-white border border-ink-100 rounded-xl">
       <summary class="cursor-pointer list-none px-5 py-4 flex items-center justify-between"><h2 class="font-semibold">My tasks{% if open_task_count %}<span class="ml-2 px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 text-xs">{{ open_task_count }}</span>{% endif %}</h2><svg class="w-4 h-4 text-ink-500 transition-transform group-open:rotate-180" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 9l6 6 6-6"/></svg></summary>
       <div class="border-t border-ink-100">{% for task in my_tasks %}<a href="{% url 'dashboard:project_task_detail' task.project.slug task.pk %}" class="block px-5 py-3 border-b border-ink-100 last:border-0 hover:bg-ink-50"><span class="block text-sm font-medium text-ink-800">{{ task.title }}</span><span class="block mt-0.5 text-xs text-ink-600">{{ task.project.title }}{% if task.due_date %} · due {{ task.due_date|date:"N j" }}{% endif %}</span></a>{% empty %}<p class="px-5 py-4 text-sm text-ink-600">No open tasks.</p>{% endfor %}</div>
     </details>
@@ -314,5 +314,19 @@
     tip.addEventListener('mouseenter', function() { clearTimeout(hideTimer); });
     tip.addEventListener('mouseleave', function() { tip.classList.add('hidden'); });
   });
+</script>
+<script>
+  (function() {
+    var details = document.getElementById('my-tasks');
+    if (!details) return;
+    function openIfHash() {
+      if (location.hash === '#my-tasks') {
+        details.open = true;
+        details.scrollIntoView({behavior: 'smooth', block: 'start'});
+      }
+    }
+    window.addEventListener('hashchange', openIfHash);
+    if (location.hash === '#my-tasks') openIfHash();
+  })();
 </script>
 {% endblock %}
