@@ -120,10 +120,12 @@
         <div class="rounded-lg border border-amber-200/60 overflow-hidden">
           {% for app in entry.applications %}
           <div class="flex items-center gap-3 px-4 py-2.5 {% if not forloop.last %}border-b border-amber-200/50{% endif %}">
-            <img src="{{ app.applicant.avatar_url }}" alt="" class="h-8 w-8 shrink-0 rounded-full border border-amber-200 bg-white object-cover">
+            <a href="{% url 'dashboard:researcher_profile' app.applicant.username %}" title="View {{ app.applicant.display_name }}'s profile">
+              <img src="{{ app.applicant.avatar_url }}" alt="{{ app.applicant.display_name }}" class="h-8 w-8 shrink-0 rounded-full border border-amber-200 bg-white object-cover hover:ring-2 hover:ring-brand-400">
+            </a>
             <div class="min-w-0 flex-1">
               <p class="text-sm text-ink-900">
-                <strong>{{ app.applicant.display_name }}</strong>
+                <a href="{% url 'dashboard:researcher_profile' app.applicant.username %}" class="hover:text-brand-700"><strong>{{ app.applicant.display_name }}</strong></a>
                 <span class="text-ink-600"> requested to join</span>
               </p>
               <div class="flex items-center gap-1.5 mt-0.5">
@@ -175,15 +177,16 @@
         <div class="rounded-lg border border-amber-200/60 overflow-hidden">
           {% for inv in entry.invitations %}
           <div class="flex items-center gap-3 px-4 py-2.5 {% if not forloop.last %}border-b border-amber-200/50{% endif %}">
-            <img src="{{ inv.invitee.avatar_url }}" alt="" class="h-8 w-8 shrink-0 rounded-full border border-amber-200 bg-white object-cover">
+            <a href="{% url 'dashboard:researcher_profile' inv.invitee.username %}" title="View {{ inv.invitee.display_name }}'s profile">
+              <img src="{{ inv.invitee.avatar_url }}" alt="{{ inv.invitee.display_name }}" class="h-8 w-8 shrink-0 rounded-full border border-amber-200 bg-white object-cover hover:ring-2 hover:ring-brand-400">
+            </a>
             <div class="min-w-0 flex-1">
               <p class="text-sm text-ink-900">
-                <strong>{{ inv.invitee.display_name }}</strong>
+                <a href="{% url 'dashboard:researcher_profile' inv.invitee.username %}" class="hover:text-brand-700"><strong>{{ inv.invitee.display_name }}</strong></a>
                 <span class="text-ink-600"> invited as {{ inv.get_role_display }}</span>
               </p>
               <p class="text-xs text-ink-500 mt-0.5">Sent {{ inv.created_at|timesince }} ago · awaiting response</p>
             </div>
-            <a href="{% url 'dashboard:project_detail' entry.project.slug %}" class="shrink-0 text-xs font-medium text-brand-700 hover:text-brand-800">View →</a>
           </div>
           {% endfor %}
         </div>
