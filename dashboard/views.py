@@ -410,7 +410,7 @@ def _dashboard_stats(user):
     projects = user.projects.all()
     open_tasks = Task.objects.filter(assigned_to=user).exclude(status=TaskStatus.DONE)
 
-    # Projects card: filter to only the current user's participating projects
+    # Projects card: show only user's projects
     projects_href = reverse('dashboard:project_list') + '?tab=mine'
 
     # Open tasks card: dynamic routing to specific task when single, otherwise to My tasks anchor
