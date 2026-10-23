@@ -3,15 +3,13 @@ services:
     name: gfr-platform
     runtime: python
     plan: free
-    branch: main
     # fix_sequences is safe to re-run; needed after importing rows with explicit IDs
     # into Postgres (free Render has no shell to run it manually).
     # --settings is passed explicitly: manage.py defaults to local settings, so
     # without it the build migrates SQLite and skips static hashing while
     # gunicorn serves with production settings.
     buildCommand: pip install -r requirements.txt && python manage.py migrate --noinput --settings=gfr.settings.production && python manage.py fix_sequences --settings=gfr.settings.production && python manage.py collectstatic --noinput --settings=gfr.settings.production
-    # Keep the runtime settings explicit, independently of Render env setup.
-    startCommand: DJANGO_SETTINGS_MODULE=gfr.settings.production gunicorn --access-logfile - --error-logfile - --log-level info gfr.wsgi:application
+    startCommand: gunicorn gfr.wsgi:application
     envVars:
       - key: DJANGO_SETTINGS_MODULE
         value: gfr.settings.production
@@ -27,49 +25,6 @@ services:
         sync: false
       - key: GEMINI_MODEL
         value: gemini-3.6-flash
-      - key: DATABASE_URL
-        sync: false
-      - key: SUPABASE_S3_ACCESS_KEY
-        sync: false
-      - key: SUPABASE_S3_SECRET_KEY
-        sync: false
-      - key: SUPABASE_S3_ENDPOINT_URL
-        sync: false
-      - key: SUPABASE_BUCKET_NAME
-        sync: false
-      - key: SUPABASE_REGION
-        value: eu-west-1
-      - key: SUPABASE_MEDIA_URL
-        sync: false
-
-  # Apply this Blueprint after creating the `staging` branch. Do not reuse the
-  # production DATABASE_URL or media bucket: staging must use isolated data.
-  - type: web
-    name: gfr-platform-staging
-    runtime: python
-    plan: free
-    branch: staging
-    # Staging must never silently use Render's ephemeral SQLite filesystem.
-    # Supply a distinct staging DATABASE_URL before its first deploy.
-    buildCommand: test -n "$DATABASE_URL" || (echo "DATABASE_URL is required for staging; use a separate staging database." && exit 1); pip install -r requirements.txt && python manage.py migrate --noinput --settings=gfr.settings.production && python manage.py fix_sequences --settings=gfr.settings.production && python manage.py collectstatic --noinput --settings=gfr.settings.production
-    startCommand: DJANGO_SETTINGS_MODULE=gfr.settings.production gunicorn --access-logfile - --error-logfile - --log-level info gfr.wsgi:application
-    envVars:
-      - key: DJANGO_SETTINGS_MODULE
-        value: gfr.settings.production
-      - key: DJANGO_SECRET_KEY
-        generateValue: true
-      - key: DJANGO_ALLOWED_HOSTS
-        value: gfr-platform-staging.onrender.com
-      - key: DJANGO_CSRF_TRUSTED_ORIGINS
-        value: https://gfr-platform-staging.onrender.com
-      - key: SANDY_FEEDBACK_WEBHOOK_URL
-        sync: false
-      - key: GEMINI_API_KEY
-        sync: false
-      - key: GEMINI_MODEL
-        value: gemini-3.6-flash
-      # Use a separate staging database and media bucket; never production.
-      # The build deliberately stops until this value is configured.
       - key: DATABASE_URL
         sync: false
       - key: SUPABASE_S3_ACCESS_KEY
